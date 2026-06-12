@@ -4,3 +4,4 @@ __pycache__/
 claims.db
 .env
 .pytest_cache/
+.dual-graph/
