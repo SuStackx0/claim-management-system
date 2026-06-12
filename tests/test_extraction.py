@@ -60,3 +60,44 @@ def test_name_tokens_match_pure():
     assert name_tokens_match("Rajesh Kumar", "Arjun Mehta") == (False, False)
     assert name_tokens_match("Rajesh Kumar", "Sunita Kumar") == (False, False)  # same surname, diff first
     assert name_tokens_match("", "Rajesh Kumar") == (False, False)
+
+
+from app.agents.extraction import ExtractionAgent
+from app.core.trace import StepStatus
+
+async def test_provided_content_is_injected(make_ctx, case_input):
+    ctx = make_ctx(case_input("TC004"))
+    ctx.policy_view = ctx.loader.view("CONSULTATION")
+    agent = ExtractionAgent(llm=MockClient())
+    result = await agent.run(ctx)
+    assert result.status == StepStatus.PASS
+    bill = next(e for e in ctx.extractions if e.doc_type == "HOSPITAL_BILL")
+    assert bill.source == "provided"
+    assert bill.data["total"] == 1500
+    assert len(bill.data["line_items"]) == 3
+
+async def test_patient_name_hint_injected_without_content(make_ctx, case_input):
+    # TC003 docs carry patient_name_on_doc but NO content — the hint must still
+    # land in extraction data, otherwise the consistency agent can't see the mismatch
+    ctx = make_ctx(case_input("TC003"))
+    ctx.policy_view = ctx.loader.view("CONSULTATION")
+    result = await ExtractionAgent(llm=MockClient()).run(ctx)
+    assert result.status == StepStatus.PASS
+    names = {e.data.get("patient_name") for e in ctx.extractions}
+    assert names == {"Rajesh Kumar", "Arjun Mehta"}
+    assert all(e.source == "provided" for e in ctx.extractions)
+
+async def test_llm_failure_degrades_not_crashes(make_ctx, case_input):
+    mock = MockClient()
+    mock.fail_next = LLMErrorKind.TIMEOUT
+    ctx = make_ctx({**case_input("TC004"),
+                    "documents": [{"file_id": "F1", "file_name": "sample_bill.jpg"}]})
+    ctx.policy_view = ctx.loader.view("CONSULTATION")
+    # give the verdict the doc_verifier would have produced
+    from app.core.context import DocVerdict
+    ctx.doc_verdicts = [DocVerdict(file_id="F1", file_name="sample_bill.jpg",
+                                   detected_type="HOSPITAL_BILL", readability="GOOD")]
+    result = await ExtractionAgent(llm=mock).run(ctx)
+    assert result.status == StepStatus.DEGRADED
+    assert ctx.extractions[0].degraded is True
+    assert any(e.factor < 1.0 for e in result.confidence_entries)
