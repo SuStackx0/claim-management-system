@@ -62,6 +62,7 @@ class Policy(BaseModel):
 class PolicyView(BaseModel):
     """Everything the pipeline needs for one claim category."""
     category: str
+    opd_key: str        # canonical lowercase key into opd_categories (for rule_refs)
     rules: CategoryRules
     required_docs: list[str]
     optional_docs: list[str]

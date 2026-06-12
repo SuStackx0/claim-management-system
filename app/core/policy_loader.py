@@ -16,7 +16,8 @@ class PolicyLoader:
         return cls(Policy.model_validate(raw), raw)
 
     def rule(self, ref: str):
-        """JSON-path lookup into the raw policy; ref is the trace's rule_ref."""
+        """JSON-path lookup into the raw policy; ref is the trace's rule_ref.
+        Traverses dict nodes only; list elements are not addressable (refs target named policy nodes)."""
         node = self._raw
         for part in ref.split("."):
             if not isinstance(node, dict) or part not in node:
@@ -31,6 +32,7 @@ class PolicyLoader:
         reqs = self.policy.document_requirements.get(category.upper(), {})
         return PolicyView(
             category=category.upper(),
+            opd_key=key,
             rules=self.policy.opd_categories[key],
             required_docs=reqs.get("required", []),
             optional_docs=reqs.get("optional", []),
