@@ -40,3 +40,17 @@ async def test_internal_error_in_degradable_agent_never_propagates(orch, case_in
     # TC011 exercises this via the simulate flag; assert no exception type leaks
     out = await run_case(orch, case_input, "TC011")
     assert out.trace["steps"][-1]["step"] == "AGGREGATION"
+
+
+async def test_persistence_failure_does_not_drop_a_computed_decision(loader, case_input):
+    """A repository write failure is a side-effect failure: the adjudicated
+    decision must still be returned, not lost behind a 500."""
+    class FailingRepo:
+        def save(self, sub, outcome):
+            raise RuntimeError("disk full")
+
+    orch = Orchestrator(loader=loader, llm=MockClient(), repository=FailingRepo())
+    out = await run_case(orch, case_input, "TC004")
+    assert out.status == "COMPLETED"
+    assert out.decision.status == DecisionStatus.APPROVED
+    assert out.decision.approved_amount == 1350

@@ -1,5 +1,5 @@
 from __future__ import annotations
-import asyncio, time, uuid
+import asyncio, logging, time, uuid
 from datetime import datetime, timezone
 from app.agents.aggregator import Aggregator
 from app.agents.adjudicator import AdjudicatorAgent
@@ -15,6 +15,8 @@ from app.core.policy_loader import PolicyLoader
 from app.core.trace import ClaimTrace, ConfidenceEntry, StepResult, StepStatus
 from app.llm.base import LLMClient
 from app.models.domain import ClaimOutcome, ClaimSubmission
+
+logger = logging.getLogger(__name__)
 
 
 class Orchestrator:
@@ -71,8 +73,15 @@ class Orchestrator:
     async def _persist(self, submission: ClaimSubmission, outcome: ClaimOutcome) -> None:
         # sqlite3 is synchronous; run it off the event loop so the pipeline's
         # async handlers are never blocked on disk I/O.
-        if self.repository:
+        # Persistence is a side effect: a write failure must never discard an
+        # already-computed decision. Log it and return the outcome anyway.
+        if not self.repository:
+            return
+        try:
             await asyncio.to_thread(self.repository.save, submission, outcome)
+        except Exception as e:
+            logger.warning("persistence failed for %s; returning decision anyway: %s",
+                           outcome.claim_id, e)
 
     def _degrade(self, ctx: ClaimContext, agent, reason: str) -> None:
         ctx.trace.steps[-1].status = StepStatus.SKIPPED

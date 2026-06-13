@@ -108,3 +108,54 @@ async def test_upload_two_files_completes_and_approves(client):
     assert decision["approved_amount"] == 1350
     # Trace must be present and contain the ADJUDICATION step
     assert any(s["step"] == "ADJUDICATION" for s in body["trace"]["steps"])
+
+
+# ---------------------------------------------------------------------------
+# Resilience: the API edge must not 500 on bad input or unexpected errors
+# ---------------------------------------------------------------------------
+
+async def test_upload_malformed_payload_is_422_not_500(client):
+    """A non-JSON payload string is a client error, not a server crash."""
+    r = await client.post(
+        "/claims/upload",
+        data={"payload": "{not valid json"},
+        files=[("files", ("sample_bill.jpg", b"fake-bytes", "image/jpeg"))],
+    )
+    assert r.status_code == 422
+
+
+async def test_upload_invalid_schema_is_422_not_500(client):
+    """Valid JSON but missing required claim fields is a client error."""
+    import json as _json
+
+    r = await client.post(
+        "/claims/upload",
+        data={"payload": _json.dumps({"member_id": "EMP001"})},
+        files=[("files", ("sample_bill.jpg", b"fake-bytes", "image/jpeg"))],
+    )
+    assert r.status_code == 422
+
+
+async def test_unexpected_error_returns_structured_500(case_input, monkeypatch, tmp_path):
+    """An unhandled internal error returns a structured JSON 500, never a
+    bare crash — the API stays explainable even on the unhappy path.
+
+    The default ASGITransport re-raises server exceptions for test visibility;
+    a real HTTP client over uvicorn receives the response the handler emits, so
+    we set raise_app_exceptions=False to observe that wire behavior here.
+    """
+    from app.core.orchestrator import Orchestrator
+
+    monkeypatch.setenv("LLM_PROVIDER", "mock")
+
+    async def boom(self, submission):
+        raise RuntimeError("kaboom")
+
+    monkeypatch.setattr(Orchestrator, "process", boom)
+
+    app = create_app(db_path=str(tmp_path / "api.db"))
+    transport = ASGITransport(app=app, raise_app_exceptions=False)
+    async with AsyncClient(transport=transport, base_url="http://t") as c:
+        r = await c.post("/claims", json=case_input("TC004"))
+    assert r.status_code == 500
+    assert r.json()["error"] == "internal_error"
