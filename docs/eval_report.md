@@ -12,10 +12,10 @@
 
 ```json
 {
-  "claim_id": "CLM-42C01D2F",
+  "claim_id": "CLM-D1F99D53",
   "pipeline_version": "1.0.0",
-  "started_at": "2026-06-13T11:26:15.975377Z",
-  "completed_at": "2026-06-13T11:26:15.975578Z",
+  "started_at": "2026-06-13T18:29:23.330844Z",
+  "completed_at": "2026-06-13T18:29:23.331819Z",
   "steps": [
     {
       "step": "INTAKE",
@@ -60,7 +60,9 @@
           "result": "SKIPPED",
           "rule_ref": "submission_rules.deadline_days_from_treatment",
           "detail": {
-            "reason": "no submission timestamp in test data"
+            "reason": "no submission_date provided; cannot measure days-from-treatment without guessing against the processing clock",
+            "treatment_date": "2024-11-01",
+            "deadline_days": 30
           }
         }
       ],
@@ -107,10 +109,10 @@
 
 ```json
 {
-  "claim_id": "CLM-0826618E",
+  "claim_id": "CLM-FA44E195",
   "pipeline_version": "1.0.0",
-  "started_at": "2026-06-13T11:26:15.975632Z",
-  "completed_at": "2026-06-13T11:26:15.975665Z",
+  "started_at": "2026-06-13T18:29:23.332180Z",
+  "completed_at": "2026-06-13T18:29:23.332418Z",
   "steps": [
     {
       "step": "INTAKE",
@@ -155,7 +157,9 @@
           "result": "SKIPPED",
           "rule_ref": "submission_rules.deadline_days_from_treatment",
           "detail": {
-            "reason": "no submission timestamp in test data"
+            "reason": "no submission_date provided; cannot measure days-from-treatment without guessing against the processing clock",
+            "treatment_date": "2024-10-25",
+            "deadline_days": 30
           }
         }
       ],
@@ -194,10 +198,10 @@
 
 ```json
 {
-  "claim_id": "CLM-A2559CD4",
+  "claim_id": "CLM-C73C82B2",
   "pipeline_version": "1.0.0",
-  "started_at": "2026-06-13T11:26:15.975693Z",
-  "completed_at": "2026-06-13T11:26:15.975824Z",
+  "started_at": "2026-06-13T18:29:23.332541Z",
+  "completed_at": "2026-06-13T18:29:23.333343Z",
   "steps": [
     {
       "step": "INTAKE",
@@ -242,7 +246,9 @@
           "result": "SKIPPED",
           "rule_ref": "submission_rules.deadline_days_from_treatment",
           "detail": {
-            "reason": "no submission timestamp in test data"
+            "reason": "no submission_date provided; cannot measure days-from-treatment without guessing against the processing clock",
+            "treatment_date": "2024-11-01",
+            "deadline_days": 30
           }
         }
       ],
@@ -365,10 +371,10 @@
 
 ```json
 {
-  "claim_id": "CLM-A5C8AFCF",
+  "claim_id": "CLM-2329C7E9",
   "pipeline_version": "1.0.0",
-  "started_at": "2026-06-13T11:26:15.975862Z",
-  "completed_at": "2026-06-13T11:26:15.976061Z",
+  "started_at": "2026-06-13T18:29:23.333661Z",
+  "completed_at": "2026-06-13T18:29:23.334782Z",
   "steps": [
     {
       "step": "INTAKE",
@@ -413,7 +419,9 @@
           "result": "SKIPPED",
           "rule_ref": "submission_rules.deadline_days_from_treatment",
           "detail": {
-            "reason": "no submission timestamp in test data"
+            "reason": "no submission_date provided; cannot measure days-from-treatment without guessing against the processing clock",
+            "treatment_date": "2024-11-01",
+            "deadline_days": 30
           }
         }
       ],
@@ -602,7 +610,8 @@
                 "reason": "covered",
                 "rule_ref": null
               }
-            ]
+            ],
+            "no_billable_items": false
           }
         },
         {
@@ -706,10 +715,10 @@
 
 ```json
 {
-  "claim_id": "CLM-90517AA5",
+  "claim_id": "CLM-F6DAFC7F",
   "pipeline_version": "1.0.0",
-  "started_at": "2026-06-13T11:26:15.976114Z",
-  "completed_at": "2026-06-13T11:26:15.976249Z",
+  "started_at": "2026-06-13T18:29:23.334920Z",
+  "completed_at": "2026-06-13T18:29:23.335159Z",
   "steps": [
     {
       "step": "INTAKE",
@@ -754,7 +763,9 @@
           "result": "SKIPPED",
           "rule_ref": "submission_rules.deadline_days_from_treatment",
           "detail": {
-            "reason": "no submission timestamp in test data"
+            "reason": "no submission_date provided; cannot measure days-from-treatment without guessing against the processing clock",
+            "treatment_date": "2024-10-15",
+            "deadline_days": 30
           }
         }
       ],
@@ -992,10 +1003,10 @@
 
 ```json
 {
-  "claim_id": "CLM-918A59FB",
+  "claim_id": "CLM-1D219AED",
   "pipeline_version": "1.0.0",
-  "started_at": "2026-06-13T11:26:15.976440Z",
-  "completed_at": "2026-06-13T11:26:15.976574Z",
+  "started_at": "2026-06-13T18:29:23.335281Z",
+  "completed_at": "2026-06-13T18:29:23.335677Z",
   "steps": [
     {
       "step": "INTAKE",
@@ -1040,7 +1051,9 @@
           "result": "SKIPPED",
           "rule_ref": "submission_rules.deadline_days_from_treatment",
           "detail": {
-            "reason": "no submission timestamp in test data"
+            "reason": "no submission_date provided; cannot measure days-from-treatment without guessing against the processing clock",
+            "treatment_date": "2024-10-15",
+            "deadline_days": 30
           }
         }
       ],
@@ -1173,7 +1186,7 @@
         },
         {
           "check": "LINE_ITEMS",
-          "result": "PASS",
+          "result": "WARN",
           "rule_ref": null,
           "detail": {
             "verdicts": [
@@ -1193,7 +1206,8 @@
                 "reason": "'Teeth Whitening' matches excluded procedure 'Teeth Whitening' \u2014 not covered",
                 "rule_ref": "opd_categories.dental.excluded_procedures"
               }
-            ]
+            ],
+            "no_billable_items": false
           }
         },
         {
@@ -1291,16 +1305,16 @@
 ## TC007 — MRI Without Pre-Authorization
 - Expected: `REJECTED` | Produced: `REJECTED` | **PASS**
 - Approved amount: ₹0 | Confidence: 1.0
-- Member message: This treatment falls inside a waiting period. You will be eligible for hernia claims from 2025-04-01. MRI above ₹10000 requires pre-authorization, which was not obtained. Please get pre-authorization from your insurer and resubmit the claim with the pre-authorization ID.
+- Member message: MRI above ₹10000 requires pre-authorization, which was not obtained. Please get pre-authorization from your insurer and resubmit the claim with the pre-authorization ID.
 
 <details><summary>Full trace</summary>
 
 ```json
 {
-  "claim_id": "CLM-27546A18",
+  "claim_id": "CLM-39650237",
   "pipeline_version": "1.0.0",
-  "started_at": "2026-06-13T11:26:15.976617Z",
-  "completed_at": "2026-06-13T11:26:15.976745Z",
+  "started_at": "2026-06-13T18:29:23.335803Z",
+  "completed_at": "2026-06-13T18:29:23.336198Z",
   "steps": [
     {
       "step": "INTAKE",
@@ -1345,7 +1359,9 @@
           "result": "SKIPPED",
           "rule_ref": "submission_rules.deadline_days_from_treatment",
           "detail": {
-            "reason": "no submission timestamp in test data"
+            "reason": "no submission_date provided; cannot measure days-from-treatment without guessing against the processing clock",
+            "treatment_date": "2024-11-02",
+            "deadline_days": 30
           }
         }
       ],
@@ -1502,14 +1518,10 @@
         },
         {
           "check": "WAITING_PERIOD",
-          "result": "FAIL",
-          "rule_ref": "waiting_periods.specific_conditions.hernia",
+          "result": "PASS",
+          "rule_ref": "waiting_periods",
           "detail": {
-            "condition_matched": "hernia",
-            "waiting_days": 365,
-            "member_join_date": "2024-04-01",
-            "eligible_from": "2025-04-01",
-            "treatment_date": "2024-11-02"
+            "condition_matched": null
           }
         },
         {
@@ -1591,12 +1603,11 @@
     "status": "REJECTED",
     "approved_amount": 0,
     "reasons": [
-      "WAITING_PERIOD",
       "PRE_AUTH_MISSING"
     ],
     "confidence": 1.0,
-    "member_message": "This treatment falls inside a waiting period. You will be eligible for hernia claims from 2025-04-01. MRI above \u20b910000 requires pre-authorization, which was not obtained. Please get pre-authorization from your insurer and resubmit the claim with the pre-authorization ID.",
-    "ops_summary": "Rejected: ['WAITING_PERIOD', 'PRE_AUTH_MISSING']. "
+    "member_message": "MRI above \u20b910000 requires pre-authorization, which was not obtained. Please get pre-authorization from your insurer and resubmit the claim with the pre-authorization ID.",
+    "ops_summary": "Rejected: ['PRE_AUTH_MISSING']. "
   }
 }
 ```
@@ -1611,10 +1622,10 @@
 
 ```json
 {
-  "claim_id": "CLM-10DDB5FB",
+  "claim_id": "CLM-65EFE350",
   "pipeline_version": "1.0.0",
-  "started_at": "2026-06-13T11:26:15.976787Z",
-  "completed_at": "2026-06-13T11:26:15.976915Z",
+  "started_at": "2026-06-13T18:29:23.336398Z",
+  "completed_at": "2026-06-13T18:29:23.336687Z",
   "steps": [
     {
       "step": "INTAKE",
@@ -1659,7 +1670,9 @@
           "result": "SKIPPED",
           "rule_ref": "submission_rules.deadline_days_from_treatment",
           "detail": {
-            "reason": "no submission timestamp in test data"
+            "reason": "no submission_date provided; cannot measure days-from-treatment without guessing against the processing clock",
+            "treatment_date": "2024-10-20",
+            "deadline_days": 30
           }
         }
       ],
@@ -1837,7 +1850,8 @@
                 "reason": "covered",
                 "rule_ref": null
               }
-            ]
+            ],
+            "no_billable_items": false
           }
         },
         {
@@ -1924,10 +1938,10 @@
 
 ```json
 {
-  "claim_id": "CLM-AE9550D7",
+  "claim_id": "CLM-66C0C430",
   "pipeline_version": "1.0.0",
-  "started_at": "2026-06-13T11:26:15.976955Z",
-  "completed_at": "2026-06-13T11:26:15.977083Z",
+  "started_at": "2026-06-13T18:29:23.336772Z",
+  "completed_at": "2026-06-13T18:29:23.337242Z",
   "steps": [
     {
       "step": "INTAKE",
@@ -1972,7 +1986,9 @@
           "result": "SKIPPED",
           "rule_ref": "submission_rules.deadline_days_from_treatment",
           "detail": {
-            "reason": "no submission timestamp in test data"
+            "reason": "no submission_date provided; cannot measure days-from-treatment without guessing against the processing clock",
+            "treatment_date": "2024-10-30",
+            "deadline_days": 30
           }
         }
       ],
@@ -2142,7 +2158,8 @@
                 "reason": "consultation fee capped at category sub-limit \u20b92000",
                 "rule_ref": "opd_categories.consultation.sub_limit"
               }
-            ]
+            ],
+            "no_billable_items": false
           }
         },
         {
@@ -2246,10 +2263,10 @@
 
 ```json
 {
-  "claim_id": "CLM-533A0982",
+  "claim_id": "CLM-6A5CA354",
   "pipeline_version": "1.0.0",
-  "started_at": "2026-06-13T11:26:15.977122Z",
-  "completed_at": "2026-06-13T11:26:15.977254Z",
+  "started_at": "2026-06-13T18:29:23.337318Z",
+  "completed_at": "2026-06-13T18:29:23.337679Z",
   "steps": [
     {
       "step": "INTAKE",
@@ -2294,7 +2311,9 @@
           "result": "SKIPPED",
           "rule_ref": "submission_rules.deadline_days_from_treatment",
           "detail": {
-            "reason": "no submission timestamp in test data"
+            "reason": "no submission_date provided; cannot measure days-from-treatment without guessing against the processing clock",
+            "treatment_date": "2024-11-03",
+            "deadline_days": 30
           }
         }
       ],
@@ -2475,7 +2494,8 @@
                 "reason": "covered",
                 "rule_ref": null
               }
-            ]
+            ],
+            "no_billable_items": false
           }
         },
         {
@@ -2579,10 +2599,10 @@
 
 ```json
 {
-  "claim_id": "CLM-D27F78ED",
+  "claim_id": "CLM-496E3F50",
   "pipeline_version": "1.0.0",
-  "started_at": "2026-06-13T11:26:15.977292Z",
-  "completed_at": "2026-06-13T11:26:15.977428Z",
+  "started_at": "2026-06-13T18:29:23.337788Z",
+  "completed_at": "2026-06-13T18:29:23.338104Z",
   "steps": [
     {
       "step": "INTAKE",
@@ -2627,7 +2647,9 @@
           "result": "SKIPPED",
           "rule_ref": "submission_rules.deadline_days_from_treatment",
           "detail": {
-            "reason": "no submission timestamp in test data"
+            "reason": "no submission_date provided; cannot measure days-from-treatment without guessing against the processing clock",
+            "treatment_date": "2024-10-28",
+            "deadline_days": 30
           }
         }
       ],
@@ -2806,7 +2828,8 @@
                 "reason": "covered",
                 "rule_ref": null
               }
-            ]
+            ],
+            "no_billable_items": false
           }
         },
         {
@@ -2892,10 +2915,10 @@
 
 ```json
 {
-  "claim_id": "CLM-BC7B836E",
+  "claim_id": "CLM-477EE2B2",
   "pipeline_version": "1.0.0",
-  "started_at": "2026-06-13T11:26:15.977470Z",
-  "completed_at": "2026-06-13T11:26:15.977581Z",
+  "started_at": "2026-06-13T18:29:23.338404Z",
+  "completed_at": "2026-06-13T18:29:23.338657Z",
   "steps": [
     {
       "step": "INTAKE",
@@ -2940,7 +2963,9 @@
           "result": "SKIPPED",
           "rule_ref": "submission_rules.deadline_days_from_treatment",
           "detail": {
-            "reason": "no submission timestamp in test data"
+            "reason": "no submission_date provided; cannot measure days-from-treatment without guessing against the processing clock",
+            "treatment_date": "2024-10-18",
+            "deadline_days": 30
           }
         }
       ],
