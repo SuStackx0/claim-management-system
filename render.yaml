@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: plum-claims-api
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.api.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: LLM_PROVIDER
+        value: gemini
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: DB_PATH
+        value: /tmp/claims.db
+      - key: POLICY_PATH
+        value: data/policy_terms.json
+      - key: TEST_CASES_PATH
+        value: data/test_cases.json
+
+  - type: web
+    name: plum-claims-ui
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: streamlit run ui/streamlit_app.py --server.port $PORT --server.address 0.0.0.0
+    envVars:
+      - key: API_BASE_URL
+        fromService:
+          type: web
+          name: plum-claims-api
+          envVarKey: RENDER_EXTERNAL_URL
