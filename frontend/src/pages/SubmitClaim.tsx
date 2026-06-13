@@ -96,12 +96,14 @@ export default function SubmitClaim() {
     }
   };
 
+  const canSubmit = !processing && !membersLoading && members.length > 0;
+
   return (
     <div>
       <h1>Submit a Claim</h1>
       <p className="pc-caption">
         Fill in the details, attach supporting documents, and the AI pipeline
-        will adjudicate in 15–25 seconds.
+        will adjudicate in ~15–25 seconds.
       </p>
       <hr className="pc-divider" />
 
@@ -109,115 +111,136 @@ export default function SubmitClaim() {
         <div className="pc-alert pc-alert-error">{membersError}</div>
       )}
 
-      <form onSubmit={onSubmit}>
-        <div className="pc-grid">
-          <div className="pc-field">
-            <label className="pc-label">Member</label>
-            {membersLoading ? (
-              <div className="pc-help">Loading members…</div>
-            ) : (
+      <div className="pc-card">
+        <form onSubmit={onSubmit}>
+          <div className="pc-grid">
+            <div className="pc-field">
+              <label className="pc-label">Member</label>
+              {membersLoading ? (
+                <div className="pc-help">Loading members…</div>
+              ) : (
+                <select
+                  className="pc-select"
+                  value={memberId}
+                  onChange={(e) => setMemberId(e.target.value)}
+                >
+                  {members.map((m) => (
+                    <option key={m.member_id} value={m.member_id}>
+                      {`${m.member_id} — ${m.name}`}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+
+            <div className="pc-field">
+              <label className="pc-label">Claim Category</label>
               <select
                 className="pc-select"
-                value={memberId}
-                onChange={(e) => setMemberId(e.target.value)}
+                value={claimCategory}
+                onChange={(e) => setClaimCategory(e.target.value)}
               >
-                {members.map((m) => (
-                  <option key={m.member_id} value={m.member_id}>
-                    {`${m.member_id} — ${m.name}`}
+                {CLAIM_CATEGORIES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
                   </option>
                 ))}
               </select>
-            )}
-          </div>
+            </div>
 
-          <div className="pc-field">
-            <label className="pc-label">Claim Category</label>
-            <select
-              className="pc-select"
-              value={claimCategory}
-              onChange={(e) => setClaimCategory(e.target.value)}
-            >
-              {CLAIM_CATEGORIES.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="pc-field">
-            <label className="pc-label">Treatment Date</label>
-            <input
-              type="date"
-              className="pc-input"
-              value={treatmentDate}
-              onChange={(e) => setTreatmentDate(e.target.value)}
-            />
-          </div>
-
-          <div className="pc-field">
-            <label className="pc-label">Claimed Amount (₹)</label>
-            <input
-              type="number"
-              min={0}
-              step={100}
-              className="pc-input"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-            />
-          </div>
-
-          <div className="pc-field">
-            <label className="pc-label">Hospital / Provider Name</label>
-            <input
-              type="text"
-              className="pc-input"
-              value={hospital}
-              onChange={(e) => setHospital(e.target.value)}
-              placeholder="e.g. Apollo Hospitals, Chennai"
-            />
-          </div>
-
-          <div className="pc-field pc-field-full">
-            <label className="pc-label">Supporting Documents</label>
-            <div className="pc-filedrop">
+            <div className="pc-field">
+              <label className="pc-label">Treatment Date</label>
               <input
-                type="file"
-                multiple
-                accept=".pdf,.jpg,.jpeg,.png"
-                onChange={(e) =>
-                  setFiles(e.target.files ? Array.from(e.target.files) : [])
-                }
+                type="date"
+                className="pc-input"
+                value={treatmentDate}
+                onChange={(e) => setTreatmentDate(e.target.value)}
               />
             </div>
-            {files.length > 0 && (
-              <ul className="pc-filelist">
-                {files.map((f, i) => (
-                  <li key={`${f.name}-${i}`}>{f.name}</li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </div>
 
-        <button
-          className="pc-btn pc-btn-full"
-          type="submit"
-          disabled={processing}
-        >
-          Submit Claim
-        </button>
-      </form>
+            <div className="pc-field">
+              <label className="pc-label">Claimed Amount (₹)</label>
+              <input
+                type="number"
+                min={0}
+                step={100}
+                className="pc-input"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="0"
+                required
+              />
+            </div>
+
+            <div className="pc-field pc-field-full">
+              <label className="pc-label">Hospital / Provider Name</label>
+              <input
+                type="text"
+                className="pc-input"
+                value={hospital}
+                onChange={(e) => setHospital(e.target.value)}
+                placeholder="e.g. Apollo Hospitals, Chennai"
+              />
+            </div>
+
+            <div className="pc-field pc-field-full">
+              <label className="pc-label">Supporting Documents</label>
+              <label className="pc-filedrop">
+                <input
+                  type="file"
+                  multiple
+                  accept=".pdf,.jpg,.jpeg,.png"
+                  onChange={(e) =>
+                    setFiles(e.target.files ? Array.from(e.target.files) : [])
+                  }
+                />
+                <div className="pc-filedrop-text">
+                  <strong>Click to choose files</strong> or drag them here
+                  <span className="pc-help"> — PDF, JPG or PNG</span>
+                </div>
+              </label>
+              {files.length > 0 && (
+                <ul className="pc-filelist">
+                  {files.map((f, i) => (
+                    <li key={`${f.name}-${i}`}>
+                      <span className="pc-mono">{f.name}</span>
+                      <span className="pc-muted">
+                        {" "}
+                        ({(f.size / 1024).toFixed(0)} KB)
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+
+          <button
+            className="pc-btn pc-btn-full"
+            type="submit"
+            disabled={!canSubmit}
+          >
+            {processing ? (
+              <>
+                <span className="pc-spinner" /> Processing claim…
+              </>
+            ) : (
+              "Submit Claim"
+            )}
+          </button>
+        </form>
+      </div>
 
       {error && <div className="pc-alert pc-alert-error">{error}</div>}
 
       {processing && (
-        <div className="pc-card">
-          <h3>
-            <span className="pc-spinner" /> Processing claim through the AI
-            pipeline
+        <div className="pc-card pc-eval-card is-running" style={{ marginTop: ".75rem" }}>
+          <h3 style={{ marginTop: 0, marginBottom: ".2rem" }}>
+            <span className="pc-spinner" /> Running the AI adjudication pipeline
           </h3>
-          <p className="pc-caption">This usually takes ~15–25 seconds.</p>
+          <p className="pc-caption" style={{ marginBottom: ".9rem" }}>
+            This usually takes ~15–25 seconds — please don't navigate away.
+          </p>
           <div>
             {STAGES.map((s, i) => (
               <div className="pc-stage" key={s.name}>
@@ -232,7 +255,7 @@ export default function SubmitClaim() {
 
       {outcome && (
         <>
-          <hr className="pc-divider" />
+          <h2 className="pc-section-title">Result</h2>
           <DecisionCard outcome={outcome} />
         </>
       )}

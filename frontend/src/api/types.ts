@@ -62,6 +62,21 @@ export interface ClaimRow {
   [key: string]: unknown;
 }
 
+export interface EvalCaseSummary {
+  case_id: string;
+  case_name: string;
+  description: string;
+  expected: {
+    decision?: string | null;
+    approved_amount?: number;
+    rejection_reasons?: string[];
+    confidence_score?: string;
+    system_must?: string[];
+    notes?: string;
+  };
+  documents: { file_id: string; file_name: string | null; actual_type: string | null }[];
+}
+
 export interface EvalCase {
   case_id: string;
   case_name: string;
