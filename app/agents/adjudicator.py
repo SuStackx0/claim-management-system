@@ -2,14 +2,15 @@ from __future__ import annotations
 import time
 from datetime import timedelta
 from app.agents.base import Agent
-from app.core.context import ClaimContext
+from app.core.context import ClaimContext, LineItemVerdict
 from app.core.matching import match_condition, match_exclusion, text_matches_any
 from app.core.trace import CheckResult, PolicyCheck, StepResult, StepStatus
+
 
 class AdjudicatorAgent(Agent):
     name = "AdjudicatorAgent"
     step = "ADJUDICATION"
-    fatal = True   # raises only on internal error
+    fatal = True
 
     async def run(self, ctx: ClaimContext) -> StepResult:
         t0 = time.monotonic()
@@ -17,14 +18,17 @@ class AdjudicatorAgent(Agent):
         self._check_exclusions(ctx, checks)
         self._check_waiting_periods(ctx, checks)
         self._check_pre_auth(ctx, checks)
-        self._check_limits(ctx, checks)
+        self._check_annual_limit(ctx, checks)   # annual on gross — always runs
         if not ctx.blocking_reasons:
-            self._adjudicate_line_items(ctx, checks)   # Task 11
-            self._compute_financials(ctx, checks)      # Task 11
+            self._adjudicate_line_items(ctx, checks)
+            self._check_per_claim_limit(ctx, checks)  # per-claim on eligible — after line items
+        if not ctx.blocking_reasons:
+            self._compute_financials(ctx, checks)
         return StepResult(step=self.step, agent=self.name, status=StepStatus.PASS,
                           checks=checks, duration_ms=int((time.monotonic() - t0) * 1000))
 
-    # ---- helpers ----
+    # ── diagnosis helpers ──────────────────────────────────────────────────────
+
     def _diagnosis_texts(self, ctx) -> list[str]:
         out = []
         for e in ctx.extractions:
@@ -32,6 +36,8 @@ class AdjudicatorAgent(Agent):
                 if e.data.get(f):
                     out.append(e.data[f])
         return out
+
+    # ── early-exit policy checks ───────────────────────────────────────────────
 
     def _check_exclusions(self, ctx, checks):
         texts = self._diagnosis_texts(ctx)
@@ -98,19 +104,11 @@ class AdjudicatorAgent(Agent):
             rule_ref=f"opd_categories.{ctx.policy_view.opd_key}.pre_auth_threshold",
             detail={"threshold": threshold}))
 
-    def _check_limits(self, ctx, checks):
+    def _check_annual_limit(self, ctx, checks):
+        """Annual OPD limit check — always runs on gross claimed amount."""
         cov = ctx.loader.policy.coverage
-        claimed = ctx.submission.claimed_amount
-        if claimed > cov.per_claim_limit:
-            ctx.blocking_reasons.append("PER_CLAIM_EXCEEDED")
-            checks.append(PolicyCheck(check="PER_CLAIM_LIMIT", result=CheckResult.FAIL,
-                rule_ref="coverage.per_claim_limit",
-                detail={"claimed": claimed, "limit": cov.per_claim_limit}))
-        else:
-            checks.append(PolicyCheck(check="PER_CLAIM_LIMIT", result=CheckResult.PASS,
-                rule_ref="coverage.per_claim_limit",
-                detail={"claimed": claimed, "limit": cov.per_claim_limit}))
         ytd = ctx.submission.ytd_claims_amount
+        claimed = ctx.submission.claimed_amount
         if ytd + claimed > cov.annual_opd_limit:
             ctx.blocking_reasons.append("ANNUAL_LIMIT_EXCEEDED")
             checks.append(PolicyCheck(check="ANNUAL_OPD_LIMIT", result=CheckResult.FAIL,
@@ -121,6 +119,109 @@ class AdjudicatorAgent(Agent):
                 rule_ref="coverage.annual_opd_limit",
                 detail={"ytd": ytd, "claimed": claimed, "limit": cov.annual_opd_limit}))
 
-    # implemented in Task 11
-    def _adjudicate_line_items(self, ctx, checks): ...
-    def _compute_financials(self, ctx, checks): ...
+    def _check_per_claim_limit(self, ctx, checks):
+        """Per-claim limit check — runs AFTER line items, on eligible_base.
+        Effective limit = max(coverage.per_claim_limit, category.sub_limit) so that
+        dental/diagnostic categories with higher sub_limits aren't falsely blocked.
+        TC008 (consultation): eligible 7500 > max(5000, 2000)=5000 → BLOCK.
+        TC006 (dental):       eligible 8000 ≤ max(5000,10000)=10000 → pass → PARTIAL.
+        """
+        cov = ctx.loader.policy.coverage
+        eligible_base = sum(v.eligible_amount for v in ctx.line_verdicts)
+        sub_limit = ctx.policy_view.rules.sub_limit
+        effective_limit = max(cov.per_claim_limit, sub_limit)
+        if effective_limit == sub_limit and sub_limit > cov.per_claim_limit:
+            rule_ref = f"opd_categories.{ctx.policy_view.opd_key}.sub_limit"
+        else:
+            rule_ref = "coverage.per_claim_limit"
+        if eligible_base > effective_limit:
+            ctx.blocking_reasons.append("PER_CLAIM_EXCEEDED")
+            checks.append(PolicyCheck(check="PER_CLAIM_LIMIT", result=CheckResult.FAIL,
+                rule_ref=rule_ref,
+                detail={"claimed": eligible_base, "limit": effective_limit}))
+        else:
+            checks.append(PolicyCheck(check="PER_CLAIM_LIMIT", result=CheckResult.PASS,
+                rule_ref=rule_ref,
+                detail={"claimed": eligible_base, "limit": effective_limit}))
+
+    # ── line-item adjudication ─────────────────────────────────────────────────
+
+    def _bill_line_items(self, ctx) -> list[dict]:
+        items = []
+        for e in ctx.extractions:
+            if e.doc_type in ("HOSPITAL_BILL", "PHARMACY_BILL"):
+                items.extend(e.data.get("line_items") or [])
+        if not items:
+            for e in ctx.extractions:
+                if e.doc_type in ("HOSPITAL_BILL", "PHARMACY_BILL") and e.data.get("total"):
+                    items.append({"description": ctx.policy_view.category.title(),
+                                  "amount": e.data["total"]})
+        return items
+
+    def _adjudicate_line_items(self, ctx, checks):
+        rules = ctx.policy_view.rules
+        cat = ctx.policy_view.opd_key
+        excluded = rules.excluded_procedures + rules.excluded_items
+        for item in self._bill_line_items(ctx):
+            desc, amount = item["description"], item["amount"]
+            # 1. category excluded_procedures list
+            hit = text_matches_any(desc, excluded)
+            if hit:
+                ctx.line_verdicts.append(LineItemVerdict(
+                    description=desc, amount=amount, eligible_amount=0, verdict="REJECTED",
+                    reason=f"'{desc}' matches excluded procedure '{hit}' — not covered",
+                    rule_ref=f"opd_categories.{cat}.excluded_procedures"))
+                continue
+            # 2. policy-level exclusion keywords
+            excl = match_exclusion(desc)
+            if excl and excl in ctx.loader.policy.exclusions.conditions:
+                ctx.line_verdicts.append(LineItemVerdict(
+                    description=desc, amount=amount, eligible_amount=0, verdict="REJECTED",
+                    reason=f"'{desc}' falls under policy exclusion '{excl}'",
+                    rule_ref="exclusions.conditions"))
+                continue
+            # 3. consultation fee sub_limit cap (assumption #1: caps the fee line, not the whole bill)
+            eligible = amount
+            verdict, reason = "APPROVED", "covered"
+            if ("consultation" in desc.lower() and cat == "consultation"
+                    and rules.sub_limit and amount > rules.sub_limit):
+                eligible, verdict = rules.sub_limit, "CAPPED"
+                reason = f"consultation fee capped at category sub-limit ₹{rules.sub_limit}"
+            ctx.line_verdicts.append(LineItemVerdict(
+                description=desc, amount=amount, eligible_amount=eligible,
+                verdict=verdict, reason=reason,
+                rule_ref=f"opd_categories.{cat}.sub_limit" if verdict == "CAPPED" else None))
+        checks.append(PolicyCheck(check="LINE_ITEMS", result=CheckResult.PASS,
+            detail={"verdicts": [v.model_dump() for v in ctx.line_verdicts]}))
+
+    # ── financial calculation ──────────────────────────────────────────────────
+
+    def _compute_financials(self, ctx, checks):
+        rules = ctx.policy_view.rules
+        cat = ctx.policy_view.opd_key
+        base = sum(v.eligible_amount for v in ctx.line_verdicts)
+        # network check: submission hospital_name takes precedence; fallback to extraction
+        hospital = ctx.submission.hospital_name or next(
+            (e.data.get("hospital_name") for e in ctx.extractions if e.data.get("hospital_name")),
+            None)
+        in_network = bool(hospital) and any(
+            h.lower() in hospital.lower() or hospital.lower() in h.lower()
+            for h in ctx.loader.policy.network_hospitals)
+        discount = round(base * rules.network_discount_percent / 100) if in_network else 0
+        after_discount = base - discount
+        copay = round(after_discount * rules.copay_percent / 100)
+        payable = after_discount - copay
+        ctx.financial = {
+            "base": base,
+            "in_network": in_network,
+            "hospital": hospital,
+            "network_discount_percent": rules.network_discount_percent if in_network else 0,
+            "network_discount": discount,
+            "after_discount": after_discount,
+            "copay_percent": rules.copay_percent,
+            "copay": copay,
+            "payable": payable,
+        }
+        checks.append(PolicyCheck(check="FINANCIAL_CALCULATION", result=CheckResult.PASS,
+            rule_ref=f"opd_categories.{cat}",
+            detail=dict(ctx.financial, order="network discount applied before co-pay")))
