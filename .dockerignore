@@ -1,0 +1,30 @@
+# VCS & CI
+.git
+.gitignore
+.github
+
+# Python envs & caches
+.venv
+venv
+__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+.mypy_cache
+.ruff_cache
+
+# Secrets & local runtime
+.env
+*.db
+claims.db
+
+# Tests, docs, tooling (not needed in the image)
+tests
+docs
+.dual-graph
+.claude
+CONTEXT.md
+
+# OS / editor cruft
+.DS_Store
+*.log

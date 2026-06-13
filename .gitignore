@@ -6,3 +6,4 @@ claims.db
 .pytest_cache/
 .dual-graph/
 CONTEXT.md
+assignment/
