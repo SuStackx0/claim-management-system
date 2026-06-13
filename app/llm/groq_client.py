@@ -1,5 +1,5 @@
 from __future__ import annotations
-import asyncio, base64, json, re
+import asyncio, base64, json, random, re
 import httpx
 from pydantic import BaseModel, ValidationError
 from app.llm.base import DocClassification, ExtractionOutput, LLMError, LLMErrorKind, NameMatch
@@ -19,6 +19,21 @@ Examine the document image and return ONLY a JSON object with these exact keys:
 }
 
 Classification rules:
+- Classify by FUNCTION, not by the clinic's specialty. An itemised document that
+  lists services/procedures/medicines with charges and a total is a BILL:
+  HOSPITAL_BILL for any clinic/hospital/dental/eye/specialist charge sheet,
+  PHARMACY_BILL only for a pharmacy/chemist/medical-store bill. A dental or eye
+  clinic's itemised charges are HOSPITAL_BILL — never DENTAL_REPORT.
+- LAB_REPORT / DIAGNOSTIC_REPORT / DISCHARGE_SUMMARY / DENTAL_REPORT are clinical
+  documents that report findings/results and carry NO billed total.
+- A report of test, scan, lab or imaging RESULTS — blood work (CBC, lipid, HbA1c),
+  pathology, MRI, CT, X-ray, ultrasound/USG — is LAB_REPORT. Prefer LAB_REPORT for
+  any such result report; do not use DIAGNOSTIC_REPORT for these.
+- A PRESCRIPTION is a doctor's note for a named patient that records a diagnosis
+  and ORDERS treatment — medicines and/or investigations/tests. It is still a
+  PRESCRIPTION when it orders only investigations (e.g. "advise MRI") and lists no
+  medicines; the act of a doctor ordering/advising, not reporting results, makes
+  it a PRESCRIPTION.
 - Use UNKNOWN only when the document type is genuinely ambiguous after careful inspection.
 - PARTIAL: one or more key fields are obscured but the document type is still identifiable even this should be mentioned to rescan and reupload.
 - UNREADABLE: document type cannot be determined at all. Mostly blurry, low-light, or heavily stamped documents. Mark them as unreadable even if some is blurry
@@ -75,8 +90,8 @@ class GroqClient:
     """
 
     def __init__(self, api_key: str, model: str = "meta-llama/llama-4-scout-17b-16e-instruct",
-                 timeout_s: int = 60, max_retries: int = 3,
-                 backoff_base_s: float = 1.0, backoff_cap_s: float = 30.0):
+                 timeout_s: int = 60, max_retries: int = 6,
+                 backoff_base_s: float = 1.0, backoff_cap_s: float = 65.0):
         self.api_key = api_key
         self.model = model
         self.timeout_s = timeout_s
@@ -158,7 +173,9 @@ class GroqClient:
                 if not e.retryable or attempt == self.max_retries:
                     raise
                 delay = self._parse_retry_delay(e.detail) or self.backoff_base_s * (2 ** attempt)
-                await self._sleep(min(delay, self.backoff_cap_s))
+                # Honor the server's window, then add jitter so calls that were
+                # throttled together don't retry in lockstep and re-collide.
+                await self._sleep(min(delay, self.backoff_cap_s) + random.uniform(0.5, 2.0))
 
     async def _attempt(self, content: list, out_model: type[BaseModel], feedback: str):
         """One call; self-corrects malformed JSON once; classifies failures."""

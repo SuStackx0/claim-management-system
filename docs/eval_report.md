@@ -1,21 +1,24 @@
-# Eval Report — 12 Test Cases
+# Eval Report — 12 Test Cases (Live Vision)
 
-**Result: 12/12 passed**
+**Result: 9/12 passed**
 
-> These cases run against the deterministic `MockClient` by design: `test_cases.json` ships document *content* as structured fixtures (no image files), so the eval validates the decision engine — policy checks, financial math, consistency, fraud, and the full trace — independently of the stochastic LLM perception layer. The real Gemini vision/extraction path is the same Orchestrator with the `LLMClient` swapped, and is exercised separately via the live API and the `@pytest.mark.live` tests.
+> **Live vision run.** Each case is rendered to document image(s) (`eval_docs/<case_id>_<file_id>.png`, generated from `test_cases.json` by `scripts/generate_eval_docs.py`) and run through the **real Groq Llama-4 multimodal pipeline** — the LLM classifies each document, extracts its fields, and resolves patient-name equivalence. No structured content is injected; the `source: "vision"` on every extraction below is the evidence. All money and policy logic remains deterministic code reading `policy_terms.json`. Because perception is stochastic, assertions are strict and any mismatch is reported honestly. Runs are paced to respect the provider rate limit.
 
 ## TC001 — Wrong Document Uploaded
 - Expected: `None` | Produced: `None` | **PASS**
 - Member message: For a CONSULTATION claim you must upload: HOSPITAL_BILL, PRESCRIPTION. You uploaded: PRESCRIPTION ('dr_sharma_prescription.jpg'), PRESCRIPTION ('another_prescription.jpg'). Missing: HOSPITAL_BILL. Please upload your hospital bill to proceed.
+- Pipeline:
+  - `INTAKE` PASS (0ms)
+  - `DOC_VERIFICATION` FAIL (853ms)
 
 <details><summary>Full trace</summary>
 
 ```json
 {
-  "claim_id": "CLM-D1F99D53",
+  "claim_id": "CLM-9F47C5B1",
   "pipeline_version": "1.0.0",
-  "started_at": "2026-06-13T18:29:23.330844Z",
-  "completed_at": "2026-06-13T18:29:23.331819Z",
+  "started_at": "2026-06-13T20:34:39.016760Z",
+  "completed_at": "2026-06-13T20:34:39.871047Z",
   "steps": [
     {
       "step": "INTAKE",
@@ -93,7 +96,7 @@
           ]
         }
       },
-      "duration_ms": 0
+      "duration_ms": 853
     }
   ],
   "decision": null
@@ -103,16 +106,19 @@
 
 ## TC002 — Unreadable Document
 - Expected: `None` | Produced: `None` | **PASS**
-- Member message: Your Pharmacy Bill ('blurry_bill.jpg') is too blurry to read. Please re-upload a clear photo of this document. Your claim is on hold — it has not been rejected.
+- Member message: For a PHARMACY claim you must upload: PHARMACY_BILL, PRESCRIPTION. You uploaded: PRESCRIPTION ('prescription.jpg'), UNKNOWN ('blurry_bill.jpg'). Missing: PHARMACY_BILL. Please upload your pharmacy bill to proceed.
+- Pipeline:
+  - `INTAKE` PASS (0ms)
+  - `DOC_VERIFICATION` FAIL (843ms)
 
 <details><summary>Full trace</summary>
 
 ```json
 {
-  "claim_id": "CLM-FA44E195",
+  "claim_id": "CLM-D8212872",
   "pipeline_version": "1.0.0",
-  "started_at": "2026-06-13T18:29:23.332180Z",
-  "completed_at": "2026-06-13T18:29:23.332418Z",
+  "started_at": "2026-06-13T20:35:00.695548Z",
+  "completed_at": "2026-06-13T20:35:01.539024Z",
   "steps": [
     {
       "step": "INTAKE",
@@ -174,15 +180,24 @@
       "checks": [],
       "confidence_entries": [],
       "error": {
-        "code": "DOCUMENT_UNREADABLE",
-        "message": "F004 unreadable",
-        "member_message": "Your Pharmacy Bill ('blurry_bill.jpg') is too blurry to read. Please re-upload a clear photo of this document. Your claim is on hold \u2014 it has not been rejected.",
+        "code": "WRONG_DOCUMENT_TYPE",
+        "message": "missing required docs: ['PHARMACY_BILL']",
+        "member_message": "For a PHARMACY claim you must upload: PHARMACY_BILL, PRESCRIPTION. You uploaded: PRESCRIPTION ('prescription.jpg'), UNKNOWN ('blurry_bill.jpg'). Missing: PHARMACY_BILL. Please upload your pharmacy bill to proceed.",
         "detail": {
-          "file_id": "F004",
-          "readability": "UNREADABLE"
+          "required": [
+            "PHARMACY_BILL",
+            "PRESCRIPTION"
+          ],
+          "detected": [
+            "PRESCRIPTION",
+            "UNKNOWN"
+          ],
+          "missing": [
+            "PHARMACY_BILL"
+          ]
         }
       },
-      "duration_ms": 0
+      "duration_ms": 843
     }
   ],
   "decision": null
@@ -193,15 +208,20 @@
 ## TC003 — Documents Belong to Different Patients
 - Expected: `None` | Produced: `None` | **PASS**
 - Member message: Your documents appear to belong to different people: the prescription is for 'Rajesh Kumar' but the hospital bill is for 'Arjun Mehta'. All documents in one claim must be for the same patient. Please re-upload matching documents.
+- Pipeline:
+  - `INTAKE` PASS (0ms)
+  - `DOC_VERIFICATION` PASS (742ms)  — F005:PRESCRIPTION@0.9, F006:HOSPITAL_BILL@0.9
+  - `EXTRACTION` PASS (452ms)  — F005:PRESCRIPTION=vision, F006:HOSPITAL_BILL=vision
+  - `CONSISTENCY` FAIL (215ms)
 
 <details><summary>Full trace</summary>
 
 ```json
 {
-  "claim_id": "CLM-C73C82B2",
+  "claim_id": "CLM-F09179DB",
   "pipeline_version": "1.0.0",
-  "started_at": "2026-06-13T18:29:23.332541Z",
-  "completed_at": "2026-06-13T18:29:23.333343Z",
+  "started_at": "2026-06-13T20:35:22.852629Z",
+  "completed_at": "2026-06-13T20:35:24.262920Z",
   "steps": [
     {
       "step": "INTAKE",
@@ -270,7 +290,7 @@
             "file_name": "prescription_rajesh.jpg",
             "detected_type": "PRESCRIPTION",
             "readability": "GOOD",
-            "confidence": 1.0
+            "confidence": 0.9
           }
         },
         {
@@ -281,8 +301,8 @@
             "file_id": "F006",
             "file_name": "bill_arjun.jpg",
             "detected_type": "HOSPITAL_BILL",
-            "readability": "GOOD",
-            "confidence": 1.0
+            "readability": "PARTIAL",
+            "confidence": 0.9
           }
         },
         {
@@ -301,9 +321,14 @@
           }
         }
       ],
-      "confidence_entries": [],
+      "confidence_entries": [
+        {
+          "factor": 0.9,
+          "reason": "bill_arjun.jpg partially readable"
+        }
+      ],
       "error": null,
-      "duration_ms": 0
+      "duration_ms": 742
     },
     {
       "step": "EXTRACTION",
@@ -317,8 +342,13 @@
           "detail": {
             "file_id": "F005",
             "doc_type": "PRESCRIPTION",
-            "source": "provided",
-            "unextracted_fields": []
+            "source": "vision",
+            "unextracted_fields": [
+              "diagnosis",
+              "medicines",
+              "tests_ordered",
+              "treatment"
+            ]
           }
         },
         {
@@ -328,14 +358,17 @@
           "detail": {
             "file_id": "F006",
             "doc_type": "HOSPITAL_BILL",
-            "source": "provided",
-            "unextracted_fields": []
+            "source": "vision",
+            "unextracted_fields": [
+              "line_items",
+              "total"
+            ]
           }
         }
       ],
       "confidence_entries": [],
       "error": null,
-      "duration_ms": 0
+      "duration_ms": 452
     },
     {
       "step": "CONSISTENCY",
@@ -354,7 +387,7 @@
           }
         }
       },
-      "duration_ms": 0
+      "duration_ms": 215
     }
   ],
   "decision": null
@@ -366,15 +399,23 @@
 - Expected: `APPROVED` | Produced: `APPROVED` | **PASS**
 - Approved amount: ₹1350 | Confidence: 1.0
 - Member message: Approved amount: ₹1350. A 10% co-pay (−₹150) was applied.
+- Pipeline:
+  - `INTAKE` PASS (0ms)
+  - `DOC_VERIFICATION` PASS (726ms)  — F007:PRESCRIPTION@0.99, F008:HOSPITAL_BILL@0.99
+  - `EXTRACTION` PASS (1189ms)  — F007:PRESCRIPTION=vision, F008:HOSPITAL_BILL=vision
+  - `CONSISTENCY` PASS (3016ms)
+  - `ADJUDICATION` PASS (1ms)
+  - `FRAUD_CHECK` PASS (0ms)
+  - `AGGREGATION` PASS (0ms)
 
 <details><summary>Full trace</summary>
 
 ```json
 {
-  "claim_id": "CLM-2329C7E9",
+  "claim_id": "CLM-415B40DB",
   "pipeline_version": "1.0.0",
-  "started_at": "2026-06-13T18:29:23.333661Z",
-  "completed_at": "2026-06-13T18:29:23.334782Z",
+  "started_at": "2026-06-13T20:35:45.378618Z",
+  "completed_at": "2026-06-13T20:35:50.314364Z",
   "steps": [
     {
       "step": "INTAKE",
@@ -443,7 +484,7 @@
             "file_name": null,
             "detected_type": "PRESCRIPTION",
             "readability": "GOOD",
-            "confidence": 1.0
+            "confidence": 0.99
           }
         },
         {
@@ -455,7 +496,7 @@
             "file_name": null,
             "detected_type": "HOSPITAL_BILL",
             "readability": "GOOD",
-            "confidence": 1.0
+            "confidence": 0.99
           }
         },
         {
@@ -476,7 +517,7 @@
       ],
       "confidence_entries": [],
       "error": null,
-      "duration_ms": 0
+      "duration_ms": 726
     },
     {
       "step": "EXTRACTION",
@@ -490,8 +531,11 @@
           "detail": {
             "file_id": "F007",
             "doc_type": "PRESCRIPTION",
-            "source": "provided",
-            "unextracted_fields": []
+            "source": "vision",
+            "unextracted_fields": [
+              "tests_ordered",
+              "treatment"
+            ]
           }
         },
         {
@@ -501,14 +545,14 @@
           "detail": {
             "file_id": "F008",
             "doc_type": "HOSPITAL_BILL",
-            "source": "provided",
+            "source": "vision",
             "unextracted_fields": []
           }
         }
       ],
       "confidence_entries": [],
       "error": null,
-      "duration_ms": 0
+      "duration_ms": 1189
     },
     {
       "step": "CONSISTENCY",
@@ -537,7 +581,7 @@
       ],
       "confidence_entries": [],
       "error": null,
-      "duration_ms": 0
+      "duration_ms": 3016
     },
     {
       "step": "ADJUDICATION",
@@ -643,7 +687,7 @@
       ],
       "confidence_entries": [],
       "error": null,
-      "duration_ms": 0
+      "duration_ms": 1
     },
     {
       "step": "FRAUD_CHECK",
@@ -710,15 +754,23 @@
 - Expected: `REJECTED` | Produced: `REJECTED` | **PASS**
 - Approved amount: ₹0 | Confidence: 1.0
 - Member message: This treatment falls inside a waiting period. You will be eligible for diabetes claims from 2024-11-30.
+- Pipeline:
+  - `INTAKE` PASS (0ms)
+  - `DOC_VERIFICATION` PASS (809ms)  — F009:PRESCRIPTION@0.99, F010:HOSPITAL_BILL@0.99
+  - `EXTRACTION` PASS (530ms)  — F009:PRESCRIPTION=vision, F010:HOSPITAL_BILL=vision
+  - `CONSISTENCY` PASS (0ms)
+  - `ADJUDICATION` PASS (0ms)
+  - `FRAUD_CHECK` PASS (0ms)
+  - `AGGREGATION` PASS (0ms)
 
 <details><summary>Full trace</summary>
 
 ```json
 {
-  "claim_id": "CLM-F6DAFC7F",
+  "claim_id": "CLM-9EE98471",
   "pipeline_version": "1.0.0",
-  "started_at": "2026-06-13T18:29:23.334920Z",
-  "completed_at": "2026-06-13T18:29:23.335159Z",
+  "started_at": "2026-06-13T20:36:57.143474Z",
+  "completed_at": "2026-06-13T20:36:58.484934Z",
   "steps": [
     {
       "step": "INTAKE",
@@ -787,7 +839,7 @@
             "file_name": null,
             "detected_type": "PRESCRIPTION",
             "readability": "GOOD",
-            "confidence": 1.0
+            "confidence": 0.99
           }
         },
         {
@@ -799,7 +851,7 @@
             "file_name": null,
             "detected_type": "HOSPITAL_BILL",
             "readability": "GOOD",
-            "confidence": 1.0
+            "confidence": 0.99
           }
         },
         {
@@ -820,7 +872,7 @@
       ],
       "confidence_entries": [],
       "error": null,
-      "duration_ms": 0
+      "duration_ms": 809
     },
     {
       "step": "EXTRACTION",
@@ -834,8 +886,11 @@
           "detail": {
             "file_id": "F009",
             "doc_type": "PRESCRIPTION",
-            "source": "provided",
-            "unextracted_fields": []
+            "source": "vision",
+            "unextracted_fields": [
+              "tests_ordered",
+              "treatment"
+            ]
           }
         },
         {
@@ -845,14 +900,16 @@
           "detail": {
             "file_id": "F010",
             "doc_type": "HOSPITAL_BILL",
-            "source": "provided",
-            "unextracted_fields": []
+            "source": "vision",
+            "unextracted_fields": [
+              "line_items"
+            ]
           }
         }
       ],
       "confidence_entries": [],
       "error": null,
-      "duration_ms": 0
+      "duration_ms": 530
     },
     {
       "step": "CONSISTENCY",
@@ -998,15 +1055,23 @@
 - Expected: `PARTIAL` | Produced: `PARTIAL` | **PASS**
 - Approved amount: ₹8000 | Confidence: 1.0
 - Member message: Approved amount: ₹8000. Not covered: Teeth Whitening (₹4000) — 'Teeth Whitening' matches excluded procedure 'Teeth Whitening' — not covered
+- Pipeline:
+  - `INTAKE` PASS (0ms)
+  - `DOC_VERIFICATION` PASS (500ms)  — F011:HOSPITAL_BILL@0.99
+  - `EXTRACTION` PASS (590ms)  — F011:HOSPITAL_BILL=vision
+  - `CONSISTENCY` PASS (0ms)
+  - `ADJUDICATION` PASS (0ms)
+  - `FRAUD_CHECK` PASS (0ms)
+  - `AGGREGATION` PASS (0ms)
 
 <details><summary>Full trace</summary>
 
 ```json
 {
-  "claim_id": "CLM-1D219AED",
+  "claim_id": "CLM-05FDFDDB",
   "pipeline_version": "1.0.0",
-  "started_at": "2026-06-13T18:29:23.335281Z",
-  "completed_at": "2026-06-13T18:29:23.335677Z",
+  "started_at": "2026-06-13T20:37:19.113464Z",
+  "completed_at": "2026-06-13T20:37:20.205590Z",
   "steps": [
     {
       "step": "INTAKE",
@@ -1075,7 +1140,7 @@
             "file_name": null,
             "detected_type": "HOSPITAL_BILL",
             "readability": "GOOD",
-            "confidence": 1.0
+            "confidence": 0.99
           }
         },
         {
@@ -1094,7 +1159,7 @@
       ],
       "confidence_entries": [],
       "error": null,
-      "duration_ms": 0
+      "duration_ms": 500
     },
     {
       "step": "EXTRACTION",
@@ -1108,14 +1173,14 @@
           "detail": {
             "file_id": "F011",
             "doc_type": "HOSPITAL_BILL",
-            "source": "provided",
+            "source": "vision",
             "unextracted_fields": []
           }
         }
       ],
       "confidence_entries": [],
       "error": null,
-      "duration_ms": 0
+      "duration_ms": 590
     },
     {
       "step": "CONSISTENCY",
@@ -1303,18 +1368,27 @@
 </details>
 
 ## TC007 — MRI Without Pre-Authorization
-- Expected: `REJECTED` | Produced: `REJECTED` | **PASS**
-- Approved amount: ₹0 | Confidence: 1.0
-- Member message: MRI above ₹10000 requires pre-authorization, which was not obtained. Please get pre-authorization from your insurer and resubmit the claim with the pre-authorization ID.
+- Expected: `REJECTED` | Produced: `MANUAL_REVIEW` | **FAIL**
+- Approved amount: ₹0 | Confidence: 0.42
+- Member message: We're reviewing your claim manually because we couldn't fully verify it from the documents provided. No action is needed from you right now.
+- Mismatches: decision: expected REJECTED, got MANUAL_REVIEW (pipeline_status=COMPLETED); missing rejection reason PRE_AUTH_MISSING
+- Pipeline:
+  - `INTAKE` PASS (0ms)
+  - `DOC_VERIFICATION` PASS (1061ms)  — F012:PRESCRIPTION@0.9, F013:LAB_REPORT@0.9, F014:HOSPITAL_BILL@0.99
+  - `EXTRACTION` DEGRADED (12760ms)  — F012:PRESCRIPTION=vision, F013:LAB_REPORT=vision, F014:HOSPITAL_BILL=vision
+  - `CONSISTENCY` PASS (0ms)
+  - `ADJUDICATION` PASS (0ms)
+  - `FRAUD_CHECK` PASS (0ms)
+  - `AGGREGATION` PASS (0ms)
 
 <details><summary>Full trace</summary>
 
 ```json
 {
-  "claim_id": "CLM-39650237",
+  "claim_id": "CLM-4052C7E4",
   "pipeline_version": "1.0.0",
-  "started_at": "2026-06-13T18:29:23.335803Z",
-  "completed_at": "2026-06-13T18:29:23.336198Z",
+  "started_at": "2026-06-13T20:38:27.003379Z",
+  "completed_at": "2026-06-13T20:38:40.823829Z",
   "steps": [
     {
       "step": "INTAKE",
@@ -1383,7 +1457,7 @@
             "file_name": null,
             "detected_type": "PRESCRIPTION",
             "readability": "GOOD",
-            "confidence": 1.0
+            "confidence": 0.9
           }
         },
         {
@@ -1395,7 +1469,7 @@
             "file_name": null,
             "detected_type": "LAB_REPORT",
             "readability": "GOOD",
-            "confidence": 1.0
+            "confidence": 0.9
           }
         },
         {
@@ -1407,7 +1481,7 @@
             "file_name": null,
             "detected_type": "HOSPITAL_BILL",
             "readability": "GOOD",
-            "confidence": 1.0
+            "confidence": 0.99
           }
         },
         {
@@ -1430,12 +1504,12 @@
       ],
       "confidence_entries": [],
       "error": null,
-      "duration_ms": 0
+      "duration_ms": 1061
     },
     {
       "step": "EXTRACTION",
       "agent": "ExtractionAgent",
-      "status": "PASS",
+      "status": "DEGRADED",
       "checks": [
         {
           "check": "FIELDS_EXTRACTED",
@@ -1444,8 +1518,11 @@
           "detail": {
             "file_id": "F012",
             "doc_type": "PRESCRIPTION",
-            "source": "provided",
-            "unextracted_fields": []
+            "source": "vision",
+            "unextracted_fields": [
+              "medicines",
+              "treatment"
+            ]
           }
         },
         {
@@ -1455,25 +1532,32 @@
           "detail": {
             "file_id": "F013",
             "doc_type": "LAB_REPORT",
-            "source": "provided",
+            "source": "vision",
             "unextracted_fields": []
           }
         },
         {
           "check": "FIELDS_EXTRACTED",
-          "result": "PASS",
+          "result": "FAIL",
           "rule_ref": null,
           "detail": {
             "file_id": "F014",
             "doc_type": "HOSPITAL_BILL",
-            "source": "provided",
-            "unextracted_fields": []
+            "source": "vision",
+            "unextracted_fields": [
+              "*"
+            ]
           }
         }
       ],
-      "confidence_entries": [],
+      "confidence_entries": [
+        {
+          "factor": 0.7,
+          "reason": "extraction failed for F014; proceeding without it"
+        }
+      ],
       "error": null,
-      "duration_ms": 0
+      "duration_ms": 12760
     },
     {
       "step": "CONSISTENCY",
@@ -1485,19 +1569,31 @@
           "result": "PASS",
           "rule_ref": null,
           "detail": {
-            "names": []
+            "names": [
+              "Suresh Patil",
+              "Suresh Patil"
+            ]
           }
         },
         {
           "check": "AMOUNT_MATCH",
-          "result": "PASS",
+          "result": "SKIPPED",
           "rule_ref": null,
           "detail": {
-            "bill_total": 15000
+            "reason": "bill extraction degraded; claimed amount unverifiable",
+            "degraded_docs": [
+              "F014"
+            ],
+            "claimed": 15000
           }
         }
       ],
-      "confidence_entries": [],
+      "confidence_entries": [
+        {
+          "factor": 0.6,
+          "reason": "claimed amount \u20b915000 could not be verified against the bill \u2014 extraction failed for document(s) F014"
+        }
+      ],
       "error": null,
       "duration_ms": 0
     },
@@ -1526,15 +1622,10 @@
         },
         {
           "check": "PRE_AUTHORIZATION",
-          "result": "FAIL",
-          "rule_ref": "opd_categories.diagnostic.high_value_tests_requiring_pre_auth",
+          "result": "PASS",
+          "rule_ref": "opd_categories.diagnostic.pre_auth_threshold",
           "detail": {
-            "test": "MRI",
-            "amount": 15000,
-            "threshold": 10000,
-            "names_seen": [
-              "MRI Lumbar Spine"
-            ]
+            "threshold": 10000
           }
         },
         {
@@ -1545,6 +1636,41 @@
             "ytd": 0,
             "claimed": 15000,
             "limit": 50000
+          }
+        },
+        {
+          "check": "LINE_ITEMS",
+          "result": "FAIL",
+          "rule_ref": null,
+          "detail": {
+            "verdicts": [],
+            "no_billable_items": true
+          }
+        },
+        {
+          "check": "PER_CLAIM_LIMIT",
+          "result": "PASS",
+          "rule_ref": "opd_categories.diagnostic.sub_limit",
+          "detail": {
+            "claimed": 0,
+            "limit": 10000
+          }
+        },
+        {
+          "check": "FINANCIAL_CALCULATION",
+          "result": "PASS",
+          "rule_ref": "opd_categories.diagnostic",
+          "detail": {
+            "base": 0,
+            "in_network": false,
+            "hospital": null,
+            "network_discount_percent": 0,
+            "network_discount": 0,
+            "after_discount": 0,
+            "copay_percent": 0,
+            "copay": 0,
+            "payable": 0,
+            "order": "network discount applied before co-pay"
           }
         }
       ],
@@ -1600,14 +1726,14 @@
     }
   ],
   "decision": {
-    "status": "REJECTED",
+    "status": "MANUAL_REVIEW",
     "approved_amount": 0,
     "reasons": [
-      "PRE_AUTH_MISSING"
+      "UNVERIFIED_AMOUNT_MATCH"
     ],
-    "confidence": 1.0,
-    "member_message": "MRI above \u20b910000 requires pre-authorization, which was not obtained. Please get pre-authorization from your insurer and resubmit the claim with the pre-authorization ID.",
-    "ops_summary": "Rejected: ['PRE_AUTH_MISSING']. "
+    "confidence": 0.42,
+    "member_message": "We're reviewing your claim manually because we couldn't fully verify it from the documents provided. No action is needed from you right now.",
+    "ops_summary": "Routed to manual review \u2014 unverifiable checks: AMOUNT_MATCH. Components degraded/skipped: EXTRACTION. Manual review recommended due to incomplete processing. Could not verify: AMOUNT_MATCH. Manual review required \u2014 a decision-relevant check could not be confirmed from the submitted documents."
   }
 }
 ```
@@ -1615,17 +1741,25 @@
 
 ## TC008 — Per-Claim Limit Exceeded
 - Expected: `REJECTED` | Produced: `REJECTED` | **PASS**
-- Approved amount: ₹0 | Confidence: 1.0
+- Approved amount: ₹0 | Confidence: 0.42
 - Member message: Your claimed amount ₹7500 exceeds the per-claim limit of ₹5000.
+- Pipeline:
+  - `INTAKE` PASS (0ms)
+  - `DOC_VERIFICATION` PASS (725ms)  — F015:PRESCRIPTION@0.99, F016:HOSPITAL_BILL@0.95
+  - `EXTRACTION` DEGRADED (11762ms)  — F015:PRESCRIPTION=vision, F016:HOSPITAL_BILL=vision
+  - `CONSISTENCY` PASS (0ms)
+  - `ADJUDICATION` PASS (0ms)
+  - `FRAUD_CHECK` PASS (0ms)
+  - `AGGREGATION` PASS (0ms)
 
 <details><summary>Full trace</summary>
 
 ```json
 {
-  "claim_id": "CLM-65EFE350",
+  "claim_id": "CLM-31122927",
   "pipeline_version": "1.0.0",
-  "started_at": "2026-06-13T18:29:23.336398Z",
-  "completed_at": "2026-06-13T18:29:23.336687Z",
+  "started_at": "2026-06-13T20:39:02.120107Z",
+  "completed_at": "2026-06-13T20:39:14.607400Z",
   "steps": [
     {
       "step": "INTAKE",
@@ -1694,7 +1828,7 @@
             "file_name": null,
             "detected_type": "PRESCRIPTION",
             "readability": "GOOD",
-            "confidence": 1.0
+            "confidence": 0.99
           }
         },
         {
@@ -1706,7 +1840,7 @@
             "file_name": null,
             "detected_type": "HOSPITAL_BILL",
             "readability": "GOOD",
-            "confidence": 1.0
+            "confidence": 0.95
           }
         },
         {
@@ -1727,22 +1861,24 @@
       ],
       "confidence_entries": [],
       "error": null,
-      "duration_ms": 0
+      "duration_ms": 725
     },
     {
       "step": "EXTRACTION",
       "agent": "ExtractionAgent",
-      "status": "PASS",
+      "status": "DEGRADED",
       "checks": [
         {
           "check": "FIELDS_EXTRACTED",
-          "result": "PASS",
+          "result": "FAIL",
           "rule_ref": null,
           "detail": {
             "file_id": "F015",
             "doc_type": "PRESCRIPTION",
-            "source": "provided",
-            "unextracted_fields": []
+            "source": "vision",
+            "unextracted_fields": [
+              "*"
+            ]
           }
         },
         {
@@ -1752,14 +1888,19 @@
           "detail": {
             "file_id": "F016",
             "doc_type": "HOSPITAL_BILL",
-            "source": "provided",
+            "source": "vision",
             "unextracted_fields": []
           }
         }
       ],
-      "confidence_entries": [],
+      "confidence_entries": [
+        {
+          "factor": 0.7,
+          "reason": "extraction failed for F015; proceeding without it"
+        }
+      ],
       "error": null,
-      "duration_ms": 0
+      "duration_ms": 11762
     },
     {
       "step": "CONSISTENCY",
@@ -1768,10 +1909,16 @@
       "checks": [
         {
           "check": "PATIENT_MATCH",
-          "result": "PASS",
+          "result": "SKIPPED",
           "rule_ref": null,
           "detail": {
-            "names": []
+            "reason": "extraction degraded; identity unverifiable",
+            "degraded_docs": [
+              "F015"
+            ],
+            "names_seen": [
+              "Amit Verma"
+            ]
           }
         },
         {
@@ -1783,7 +1930,12 @@
           }
         }
       ],
-      "confidence_entries": [],
+      "confidence_entries": [
+        {
+          "factor": 0.6,
+          "reason": "patient identity could not be verified \u2014 extraction failed for document(s) F015, so cross-document name comparison was not possible"
+        }
+      ],
       "error": null,
       "duration_ms": 0
     },
@@ -1797,9 +1949,7 @@
           "result": "PASS",
           "rule_ref": "exclusions.conditions",
           "detail": {
-            "diagnosis_texts": [
-              "Gastroenteritis"
-            ]
+            "diagnosis_texts": []
           }
         },
         {
@@ -1921,9 +2071,9 @@
     "reasons": [
       "PER_CLAIM_EXCEEDED"
     ],
-    "confidence": 1.0,
+    "confidence": 0.42,
     "member_message": "Your claimed amount \u20b97500 exceeds the per-claim limit of \u20b95000.",
-    "ops_summary": "Rejected: ['PER_CLAIM_EXCEEDED']. "
+    "ops_summary": "Rejected: ['PER_CLAIM_EXCEEDED']. Components degraded/skipped: EXTRACTION. Manual review recommended due to incomplete processing. Could not verify: PATIENT_MATCH. Manual review required \u2014 a decision-relevant check could not be confirmed from the submitted documents."
   }
 }
 ```
@@ -1933,15 +2083,23 @@
 - Expected: `MANUAL_REVIEW` | Produced: `MANUAL_REVIEW` | **PASS**
 - Approved amount: ₹0 | Confidence: 1.0
 - Member message: Your claim needs a quick manual check by our team before we can process it. No action is needed from you right now.
+- Pipeline:
+  - `INTAKE` PASS (0ms)
+  - `DOC_VERIFICATION` PASS (783ms)  — F017:PRESCRIPTION@0.9, F018:HOSPITAL_BILL@0.99
+  - `EXTRACTION` PASS (7727ms)  — F017:PRESCRIPTION=vision, F018:HOSPITAL_BILL=vision
+  - `CONSISTENCY` PASS (0ms)
+  - `ADJUDICATION` PASS (0ms)
+  - `FRAUD_CHECK` PASS (0ms)
+  - `AGGREGATION` PASS (0ms)
 
 <details><summary>Full trace</summary>
 
 ```json
 {
-  "claim_id": "CLM-66C0C430",
+  "claim_id": "CLM-A222B047",
   "pipeline_version": "1.0.0",
-  "started_at": "2026-06-13T18:29:23.336772Z",
-  "completed_at": "2026-06-13T18:29:23.337242Z",
+  "started_at": "2026-06-13T20:39:35.205852Z",
+  "completed_at": "2026-06-13T20:39:43.717906Z",
   "steps": [
     {
       "step": "INTAKE",
@@ -2010,7 +2168,7 @@
             "file_name": null,
             "detected_type": "PRESCRIPTION",
             "readability": "GOOD",
-            "confidence": 1.0
+            "confidence": 0.9
           }
         },
         {
@@ -2022,7 +2180,7 @@
             "file_name": null,
             "detected_type": "HOSPITAL_BILL",
             "readability": "GOOD",
-            "confidence": 1.0
+            "confidence": 0.99
           }
         },
         {
@@ -2043,7 +2201,7 @@
       ],
       "confidence_entries": [],
       "error": null,
-      "duration_ms": 0
+      "duration_ms": 783
     },
     {
       "step": "EXTRACTION",
@@ -2057,8 +2215,12 @@
           "detail": {
             "file_id": "F017",
             "doc_type": "PRESCRIPTION",
-            "source": "provided",
-            "unextracted_fields": []
+            "source": "vision",
+            "unextracted_fields": [
+              "medicines",
+              "tests_ordered",
+              "treatment"
+            ]
           }
         },
         {
@@ -2068,14 +2230,16 @@
           "detail": {
             "file_id": "F018",
             "doc_type": "HOSPITAL_BILL",
-            "source": "provided",
-            "unextracted_fields": []
+            "source": "vision",
+            "unextracted_fields": [
+              "line_items"
+            ]
           }
         }
       ],
       "confidence_entries": [],
       "error": null,
-      "duration_ms": 0
+      "duration_ms": 7727
     },
     {
       "step": "CONSISTENCY",
@@ -2087,7 +2251,10 @@
           "result": "PASS",
           "rule_ref": null,
           "detail": {
-            "names": []
+            "names": [
+              "Ravi Menon",
+              "Ravi Menon"
+            ]
           }
         },
         {
@@ -2178,7 +2345,7 @@
           "detail": {
             "base": 2000,
             "in_network": false,
-            "hospital": null,
+            "hospital": "City Hospital",
             "network_discount_percent": 0,
             "network_discount": 0,
             "after_discount": 2000,
@@ -2258,15 +2425,23 @@
 - Expected: `APPROVED` | Produced: `APPROVED` | **PASS**
 - Approved amount: ₹3240 | Confidence: 1.0
 - Member message: Approved amount: ₹3240. Network discount 20% (−₹900) applied first (net ₹3600), then co-pay 10% (−₹360).
+- Pipeline:
+  - `INTAKE` PASS (0ms)
+  - `DOC_VERIFICATION` PASS (796ms)  — F019:PRESCRIPTION@0.99, F020:HOSPITAL_BILL@0.95
+  - `EXTRACTION` PASS (606ms)  — F019:PRESCRIPTION=vision, F020:HOSPITAL_BILL=vision
+  - `CONSISTENCY` PASS (0ms)
+  - `ADJUDICATION` PASS (0ms)
+  - `FRAUD_CHECK` PASS (0ms)
+  - `AGGREGATION` PASS (0ms)
 
 <details><summary>Full trace</summary>
 
 ```json
 {
-  "claim_id": "CLM-6A5CA354",
+  "claim_id": "CLM-A805346A",
   "pipeline_version": "1.0.0",
-  "started_at": "2026-06-13T18:29:23.337318Z",
-  "completed_at": "2026-06-13T18:29:23.337679Z",
+  "started_at": "2026-06-13T20:40:48.094158Z",
+  "completed_at": "2026-06-13T20:40:49.497665Z",
   "steps": [
     {
       "step": "INTAKE",
@@ -2335,7 +2510,7 @@
             "file_name": null,
             "detected_type": "PRESCRIPTION",
             "readability": "GOOD",
-            "confidence": 1.0
+            "confidence": 0.99
           }
         },
         {
@@ -2347,7 +2522,7 @@
             "file_name": null,
             "detected_type": "HOSPITAL_BILL",
             "readability": "GOOD",
-            "confidence": 1.0
+            "confidence": 0.95
           }
         },
         {
@@ -2368,7 +2543,7 @@
       ],
       "confidence_entries": [],
       "error": null,
-      "duration_ms": 0
+      "duration_ms": 796
     },
     {
       "step": "EXTRACTION",
@@ -2382,8 +2557,11 @@
           "detail": {
             "file_id": "F019",
             "doc_type": "PRESCRIPTION",
-            "source": "provided",
-            "unextracted_fields": []
+            "source": "vision",
+            "unextracted_fields": [
+              "tests_ordered",
+              "treatment"
+            ]
           }
         },
         {
@@ -2393,14 +2571,14 @@
           "detail": {
             "file_id": "F020",
             "doc_type": "HOSPITAL_BILL",
-            "source": "provided",
+            "source": "vision",
             "unextracted_fields": []
           }
         }
       ],
       "confidence_entries": [],
       "error": null,
-      "duration_ms": 0
+      "duration_ms": 606
     },
     {
       "step": "CONSISTENCY",
@@ -2591,18 +2769,27 @@
 </details>
 
 ## TC011 — Component Failure — Graceful Degradation
-- Expected: `APPROVED` | Produced: `APPROVED` | **PASS**
-- Approved amount: ₹4000 | Confidence: 0.7
-- Member message: Approved amount: ₹4000.
+- Expected: `APPROVED` | Produced: `MANUAL_REVIEW` | **FAIL**
+- Approved amount: ₹0 | Confidence: 0.1764
+- Member message: We're reviewing your claim manually because we couldn't fully verify it from the documents provided. No action is needed from you right now.
+- Mismatches: decision: expected APPROVED, got MANUAL_REVIEW (pipeline_status=COMPLETED)
+- Pipeline:
+  - `INTAKE` PASS (0ms)
+  - `DOC_VERIFICATION` PASS (782ms)  — F021:PRESCRIPTION@0.95, F022:HOSPITAL_BILL@0.99
+  - `EXTRACTION` DEGRADED (19902ms)  — F021:PRESCRIPTION=vision, F022:HOSPITAL_BILL=vision
+  - `CONSISTENCY` PASS (0ms)
+  - `ADJUDICATION` PASS (0ms)
+  - `FRAUD_CHECK` SKIPPED (0ms)
+  - `AGGREGATION` PASS (0ms)
 
 <details><summary>Full trace</summary>
 
 ```json
 {
-  "claim_id": "CLM-496E3F50",
+  "claim_id": "CLM-0211EFCB",
   "pipeline_version": "1.0.0",
-  "started_at": "2026-06-13T18:29:23.337788Z",
-  "completed_at": "2026-06-13T18:29:23.338104Z",
+  "started_at": "2026-06-13T20:41:57.582398Z",
+  "completed_at": "2026-06-13T20:42:18.267502Z",
   "steps": [
     {
       "step": "INTAKE",
@@ -2671,7 +2858,7 @@
             "file_name": null,
             "detected_type": "PRESCRIPTION",
             "readability": "GOOD",
-            "confidence": 1.0
+            "confidence": 0.95
           }
         },
         {
@@ -2683,7 +2870,7 @@
             "file_name": null,
             "detected_type": "HOSPITAL_BILL",
             "readability": "GOOD",
-            "confidence": 1.0
+            "confidence": 0.99
           }
         },
         {
@@ -2704,12 +2891,12 @@
       ],
       "confidence_entries": [],
       "error": null,
-      "duration_ms": 0
+      "duration_ms": 782
     },
     {
       "step": "EXTRACTION",
       "agent": "ExtractionAgent",
-      "status": "PASS",
+      "status": "DEGRADED",
       "checks": [
         {
           "check": "FIELDS_EXTRACTED",
@@ -2718,25 +2905,35 @@
           "detail": {
             "file_id": "F021",
             "doc_type": "PRESCRIPTION",
-            "source": "provided",
-            "unextracted_fields": []
+            "source": "vision",
+            "unextracted_fields": [
+              "medicines",
+              "tests_ordered"
+            ]
           }
         },
         {
           "check": "FIELDS_EXTRACTED",
-          "result": "PASS",
+          "result": "FAIL",
           "rule_ref": null,
           "detail": {
             "file_id": "F022",
             "doc_type": "HOSPITAL_BILL",
-            "source": "provided",
-            "unextracted_fields": []
+            "source": "vision",
+            "unextracted_fields": [
+              "*"
+            ]
           }
         }
       ],
-      "confidence_entries": [],
+      "confidence_entries": [
+        {
+          "factor": 0.7,
+          "reason": "extraction failed for F022; proceeding without it"
+        }
+      ],
       "error": null,
-      "duration_ms": 0
+      "duration_ms": 19902
     },
     {
       "step": "CONSISTENCY",
@@ -2745,22 +2942,41 @@
       "checks": [
         {
           "check": "PATIENT_MATCH",
-          "result": "PASS",
+          "result": "SKIPPED",
           "rule_ref": null,
           "detail": {
-            "names": []
+            "reason": "extraction degraded; identity unverifiable",
+            "degraded_docs": [
+              "F022"
+            ],
+            "names_seen": [
+              "Kavita Nair"
+            ]
           }
         },
         {
           "check": "AMOUNT_MATCH",
-          "result": "PASS",
+          "result": "SKIPPED",
           "rule_ref": null,
           "detail": {
-            "bill_total": 4000
+            "reason": "bill extraction degraded; claimed amount unverifiable",
+            "degraded_docs": [
+              "F022"
+            ],
+            "claimed": 4000
           }
         }
       ],
-      "confidence_entries": [],
+      "confidence_entries": [
+        {
+          "factor": 0.6,
+          "reason": "patient identity could not be verified \u2014 extraction failed for document(s) F022, so cross-document name comparison was not possible"
+        },
+        {
+          "factor": 0.6,
+          "reason": "claimed amount \u20b94000 could not be verified against the bill \u2014 extraction failed for document(s) F022"
+        }
+      ],
       "error": null,
       "duration_ms": 0
     },
@@ -2808,28 +3024,11 @@
         },
         {
           "check": "LINE_ITEMS",
-          "result": "PASS",
+          "result": "FAIL",
           "rule_ref": null,
           "detail": {
-            "verdicts": [
-              {
-                "description": "Panchakarma Therapy (5 sessions)",
-                "amount": 3000,
-                "eligible_amount": 3000,
-                "verdict": "APPROVED",
-                "reason": "covered",
-                "rule_ref": null
-              },
-              {
-                "description": "Consultation",
-                "amount": 1000,
-                "eligible_amount": 1000,
-                "verdict": "APPROVED",
-                "reason": "covered",
-                "rule_ref": null
-              }
-            ],
-            "no_billable_items": false
+            "verdicts": [],
+            "no_billable_items": true
           }
         },
         {
@@ -2837,7 +3036,7 @@
           "result": "PASS",
           "rule_ref": "opd_categories.alternative_medicine.sub_limit",
           "detail": {
-            "claimed": 4000,
+            "claimed": 0,
             "limit": 8000
           }
         },
@@ -2846,15 +3045,15 @@
           "result": "PASS",
           "rule_ref": "opd_categories.alternative_medicine",
           "detail": {
-            "base": 4000,
+            "base": 0,
             "in_network": false,
-            "hospital": "Ayur Wellness Centre",
+            "hospital": null,
             "network_discount_percent": 0,
             "network_discount": 0,
-            "after_discount": 4000,
+            "after_discount": 0,
             "copay_percent": 0,
             "copay": 0,
-            "payable": 4000,
+            "payable": 0,
             "order": "network discount applied before co-pay"
           }
         }
@@ -2893,32 +3092,36 @@
     }
   ],
   "decision": {
-    "status": "APPROVED",
-    "approved_amount": 4000,
+    "status": "MANUAL_REVIEW",
+    "approved_amount": 0,
     "reasons": [
-      "All checks passed"
+      "UNVERIFIED_PATIENT_MATCH",
+      "UNVERIFIED_AMOUNT_MATCH"
     ],
-    "confidence": 0.7,
-    "member_message": "Approved amount: \u20b94000.",
-    "ops_summary": "APPROVED: payable \u20b94000. Lines: Panchakarma Therapy (5 sessions): APPROVED (covered); Consultation: APPROVED (covered). Financial: {'base': 4000, 'in_network': False, 'hospital': 'Ayur Wellness Centre', 'network_discount_percent': 0, 'network_discount': 0, 'after_discount': 4000, 'copay_percent': 0, 'copay': 0, 'payable': 4000}. Components degraded/skipped: FRAUD_CHECK. Manual review recommended due to incomplete processing."
+    "confidence": 0.1764,
+    "member_message": "We're reviewing your claim manually because we couldn't fully verify it from the documents provided. No action is needed from you right now.",
+    "ops_summary": "Routed to manual review \u2014 unverifiable checks: PATIENT_MATCH, AMOUNT_MATCH. Components degraded/skipped: EXTRACTION, FRAUD_CHECK. Manual review recommended due to incomplete processing. Could not verify: PATIENT_MATCH, AMOUNT_MATCH. Manual review required \u2014 a decision-relevant check could not be confirmed from the submitted documents."
   }
 }
 ```
 </details>
 
 ## TC012 — Excluded Treatment
-- Expected: `REJECTED` | Produced: `REJECTED` | **PASS**
-- Approved amount: ₹0 | Confidence: 1.0
-- Member message: 'Obesity and weight loss programs' is excluded under your policy and cannot be claimed. This treatment falls inside a waiting period. You will be eligible for obesity_treatment claims from 2025-04-01.
+- Expected: `REJECTED` | Produced: `None` | **FAIL**
+- Member message: We couldn't process 'F023'. Please re-upload a clearer photo or PDF of this document.
+- Mismatches: decision: expected REJECTED, got None (pipeline_status=STOPPED)
+- Pipeline:
+  - `INTAKE` PASS (0ms)
+  - `DOC_VERIFICATION` FAIL (7478ms)
 
 <details><summary>Full trace</summary>
 
 ```json
 {
-  "claim_id": "CLM-477EE2B2",
+  "claim_id": "CLM-15F7E314",
   "pipeline_version": "1.0.0",
-  "started_at": "2026-06-13T18:29:23.338404Z",
-  "completed_at": "2026-06-13T18:29:23.338657Z",
+  "started_at": "2026-06-13T20:43:22.587220Z",
+  "completed_at": "2026-06-13T20:43:30.066124Z",
   "steps": [
     {
       "step": "INTAKE",
@@ -2976,220 +3179,19 @@
     {
       "step": "DOC_VERIFICATION",
       "agent": "DocVerifierAgent",
-      "status": "PASS",
-      "checks": [
-        {
-          "check": "DOC_CLASSIFIED",
-          "result": "PASS",
-          "rule_ref": null,
-          "detail": {
-            "file_id": "F023",
-            "file_name": null,
-            "detected_type": "PRESCRIPTION",
-            "readability": "GOOD",
-            "confidence": 1.0
-          }
-        },
-        {
-          "check": "DOC_CLASSIFIED",
-          "result": "PASS",
-          "rule_ref": null,
-          "detail": {
-            "file_id": "F024",
-            "file_name": null,
-            "detected_type": "HOSPITAL_BILL",
-            "readability": "GOOD",
-            "confidence": 1.0
-          }
-        },
-        {
-          "check": "REQUIREMENTS_MET",
-          "result": "PASS",
-          "rule_ref": "document_requirements.CONSULTATION",
-          "detail": {
-            "required": [
-              "HOSPITAL_BILL",
-              "PRESCRIPTION"
-            ],
-            "detected": [
-              "HOSPITAL_BILL",
-              "PRESCRIPTION"
-            ]
-          }
-        }
-      ],
-      "confidence_entries": [],
-      "error": null,
-      "duration_ms": 0
-    },
-    {
-      "step": "EXTRACTION",
-      "agent": "ExtractionAgent",
-      "status": "PASS",
-      "checks": [
-        {
-          "check": "FIELDS_EXTRACTED",
-          "result": "PASS",
-          "rule_ref": null,
-          "detail": {
-            "file_id": "F023",
-            "doc_type": "PRESCRIPTION",
-            "source": "provided",
-            "unextracted_fields": []
-          }
-        },
-        {
-          "check": "FIELDS_EXTRACTED",
-          "result": "PASS",
-          "rule_ref": null,
-          "detail": {
-            "file_id": "F024",
-            "doc_type": "HOSPITAL_BILL",
-            "source": "provided",
-            "unextracted_fields": []
-          }
-        }
-      ],
-      "confidence_entries": [],
-      "error": null,
-      "duration_ms": 0
-    },
-    {
-      "step": "CONSISTENCY",
-      "agent": "ConsistencyAgent",
-      "status": "PASS",
-      "checks": [
-        {
-          "check": "PATIENT_MATCH",
-          "result": "PASS",
-          "rule_ref": null,
-          "detail": {
-            "names": []
-          }
-        },
-        {
-          "check": "AMOUNT_MATCH",
-          "result": "PASS",
-          "rule_ref": null,
-          "detail": {
-            "bill_total": 8000
-          }
-        }
-      ],
-      "confidence_entries": [],
-      "error": null,
-      "duration_ms": 0
-    },
-    {
-      "step": "ADJUDICATION",
-      "agent": "AdjudicatorAgent",
-      "status": "PASS",
-      "checks": [
-        {
-          "check": "EXCLUSIONS",
-          "result": "FAIL",
-          "rule_ref": "exclusions.conditions",
-          "detail": {
-            "matched_exclusion": "Obesity and weight loss programs",
-            "diagnosis_texts": [
-              "Morbid Obesity \u2014 BMI 37",
-              "Bariatric Consultation and Customised Diet Plan"
-            ]
-          }
-        },
-        {
-          "check": "WAITING_PERIOD",
-          "result": "FAIL",
-          "rule_ref": "waiting_periods.specific_conditions.obesity_treatment",
-          "detail": {
-            "condition_matched": "obesity_treatment",
-            "waiting_days": 365,
-            "member_join_date": "2024-04-01",
-            "eligible_from": "2025-04-01",
-            "treatment_date": "2024-10-18"
-          }
-        },
-        {
-          "check": "PRE_AUTHORIZATION",
-          "result": "PASS",
-          "rule_ref": "opd_categories.consultation",
-          "detail": {
-            "reason": "category has no pre-auth rules"
-          }
-        },
-        {
-          "check": "ANNUAL_OPD_LIMIT",
-          "result": "PASS",
-          "rule_ref": "coverage.annual_opd_limit",
-          "detail": {
-            "ytd": 0,
-            "claimed": 8000,
-            "limit": 50000
-          }
-        }
-      ],
-      "confidence_entries": [],
-      "error": null,
-      "duration_ms": 0
-    },
-    {
-      "step": "FRAUD_CHECK",
-      "agent": "FraudAgent",
-      "status": "PASS",
-      "checks": [
-        {
-          "check": "SAME_DAY_CLAIMS",
-          "result": "PASS",
-          "rule_ref": "fraud_thresholds.same_day_claims_limit",
-          "detail": {
-            "count_today": 1,
-            "limit": 2
-          }
-        },
-        {
-          "check": "MONTHLY_CLAIMS",
-          "result": "PASS",
-          "rule_ref": "fraud_thresholds.monthly_claims_limit",
-          "detail": {
-            "count_month": 1,
-            "limit": 6
-          }
-        },
-        {
-          "check": "HIGH_VALUE",
-          "result": "PASS",
-          "rule_ref": "fraud_thresholds.auto_manual_review_above",
-          "detail": {
-            "claimed": 8000,
-            "threshold": 25000
-          }
-        }
-      ],
-      "confidence_entries": [],
-      "error": null,
-      "duration_ms": 0
-    },
-    {
-      "step": "AGGREGATION",
-      "agent": "Aggregator",
-      "status": "PASS",
+      "status": "FAIL",
       "checks": [],
       "confidence_entries": [],
-      "error": null,
-      "duration_ms": 0
+      "error": {
+        "code": "DOCUMENT_UNREADABLE",
+        "message": "classification failed for F023: RATE_LIMIT: {\"error\":{\"message\":\"Rate limit reached for model `meta-llama/llama-4-scout-17b-16e-instruct` in organization `org_01kv1aghg1f6eayztey8sd3vj1` service tier `on_demand` on tokens per day (TPD): Limit 500000, Used 497584, Requested 3102. Please try again in 1m58.540799999s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing\",\"type\":\"tokens\",\"code\":\"rate_limit_exceeded\"}}\n",
+        "member_message": "We couldn't process 'F023'. Please re-upload a clearer photo or PDF of this document.",
+        "detail": {}
+      },
+      "duration_ms": 7478
     }
   ],
-  "decision": {
-    "status": "REJECTED",
-    "approved_amount": 0,
-    "reasons": [
-      "EXCLUDED_CONDITION",
-      "WAITING_PERIOD"
-    ],
-    "confidence": 1.0,
-    "member_message": "'Obesity and weight loss programs' is excluded under your policy and cannot be claimed. This treatment falls inside a waiting period. You will be eligible for obesity_treatment claims from 2025-04-01.",
-    "ops_summary": "Rejected: ['EXCLUDED_CONDITION', 'WAITING_PERIOD']. "
-  }
+  "decision": null
 }
 ```
 </details>

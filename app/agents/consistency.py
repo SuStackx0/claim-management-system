@@ -26,11 +26,21 @@ class ConsistencyAgent(Agent):
         self.llm = llm
 
     async def _names_match(self, a: str, b: str):
+        # Deterministic first: an exact or initial-style token match ('Rajesh
+        # Kumar' / 'R. Kumar') needs no LLM. We only spend an LLM call when the
+        # cheap matcher says "different" — the genuinely ambiguous cases the LLM
+        # is good at (transliteration, word order, honorifics). This keeps the
+        # AI in the loop where it adds value while collapsing the per-claim call
+        # count from O(docs x roster) to ~0 for same-patient claims, so a Groq
+        # rate-limit burst can't stall the pipeline on redundant name checks.
+        eq, fuzzy = name_tokens_match(a, b)
+        if eq:
+            return eq, fuzzy
         try:
             m = await self.llm.names_equivalent(a, b)
             return m.equivalent, m.fuzzy
         except LLMError:
-            return name_tokens_match(a, b)   # deterministic fallback
+            return eq, fuzzy   # deterministic verdict stands if the LLM is unavailable
 
     def _flag_unverified(self, ctx, entries, check: str, reason: str, detail: dict) -> None:
         """Record a decision-relevant check we could NOT verify (because the data it

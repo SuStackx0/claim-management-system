@@ -12,15 +12,26 @@ class ExtractionAgent(Agent):
     step = "EXTRACTION"
     fatal = False
 
-    def __init__(self, llm: LLMClient):
+    def __init__(self, llm: LLMClient, max_concurrency: int = 1):
         self.llm = llm
+        # Per-document extraction is structured as an async fan-out, but the
+        # number of in-flight LLM calls is bounded. On a rate-limited free tier,
+        # firing every document's vision call at once bursts past the
+        # tokens-per-minute cap and the throttled calls then retry in lockstep
+        # and re-collide; a bound of 1 serializes them so each gets its own
+        # window. Raise it when the provider quota allows true parallelism.
+        self.max_concurrency = max(1, max_concurrency)
 
     async def run(self, ctx: ClaimContext) -> StepResult:
         t0 = time.monotonic()
         verdict_by_id = {v.file_id: v for v in ctx.doc_verdicts}
-        records = await asyncio.gather(
-            *(self._extract_one(doc, verdict_by_id.get(doc.file_id)) for doc in ctx.submission.documents)
-        )
+        sem = asyncio.Semaphore(self.max_concurrency)
+
+        async def _guarded(doc):
+            async with sem:
+                return await self._extract_one(doc, verdict_by_id.get(doc.file_id))
+
+        records = await asyncio.gather(*(_guarded(doc) for doc in ctx.submission.documents))
         ctx.extractions = list(records)
 
         checks, entries = [], []

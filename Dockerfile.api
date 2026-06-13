@@ -9,6 +9,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code and data
 COPY app/ app/
 COPY data/ data/
+# Per-case document images for the live (vision) eval path. Without these the
+# /eval/run/{case_id} endpoint cannot exercise real LLM extraction.
+COPY eval_docs/ eval_docs/
 COPY .env.example .env.example
 
 # Non-root user for security

@@ -103,6 +103,38 @@ def create_app(db_path: str | None = None) -> FastAPI:
         report = await runner.run_all(settings.test_cases_path)
         return report.model_dump()
 
+    @app.get("/eval/cases")
+    async def eval_cases():
+        from app.eval.runner import case_summaries
+        return case_summaries(settings.test_cases_path)
+
+    @app.post("/eval/run/{case_id}")
+    async def run_eval_case(case_id: str):
+        """Run a single case through the real vision pipeline: the generated
+        document images are read by Groq's multimodal model (classification,
+        extraction, name-matching) instead of injecting structured content."""
+        from app.eval.runner import EVAL_DOCS_DIR, EvalRunner, find_case
+        case = find_case(case_id, settings.test_cases_path)
+        if case is None:
+            raise HTTPException(404, f"unknown test case {case_id!r}")
+        if not settings.groq_api_key:
+            raise HTTPException(
+                503, "live eval needs a vision LLM: set GROQ_API_KEY (provider=groq).")
+        # Fail loudly if the document images are missing — otherwise the live
+        # path silently falls back to injected content and looks like vision but
+        # isn't (the classic "0ms extraction" symptom in a stale container).
+        if case["input"].get("documents") and not EvalRunner.live_images_for(case):
+            raise HTTPException(
+                503, f"No eval document images for {case_id} in {EVAL_DOCS_DIR}. "
+                "Run `python scripts/generate_eval_docs.py`, then rebuild the API "
+                "image (Dockerfile.api copies eval_docs/).")
+        from app.llm.groq_client import GroqClient
+        live_llm = GroqClient(api_key=settings.groq_api_key, model=settings.groq_model)
+        live_orch = Orchestrator(loader=loader, llm=live_llm)  # no repo: eval is not a real claim
+        runner = EvalRunner(orchestrator=orch)
+        result = await runner.run_case_live(case, live_orch)
+        return result.model_dump()
+
     @app.exception_handler(Exception)
     async def on_unexpected_error(request, exc):
         # Last-resort safety net: an unexpected error becomes a structured JSON
