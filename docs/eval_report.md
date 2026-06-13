@@ -2,6 +2,8 @@
 
 **Result: 12/12 passed**
 
+> These cases run against the deterministic `MockClient` by design: `test_cases.json` ships document *content* as structured fixtures (no image files), so the eval validates the decision engine — policy checks, financial math, consistency, fraud, and the full trace — independently of the stochastic LLM perception layer. The real Gemini vision/extraction path is the same Orchestrator with the `LLMClient` swapped, and is exercised separately via the live API and the `@pytest.mark.live` tests.
+
 ## TC001 — Wrong Document Uploaded
 - Expected: `None` | Produced: `None` | **PASS**
 - Member message: For a CONSULTATION claim you must upload: HOSPITAL_BILL, PRESCRIPTION. You uploaded: PRESCRIPTION ('dr_sharma_prescription.jpg'), PRESCRIPTION ('another_prescription.jpg'). Missing: HOSPITAL_BILL. Please upload your hospital bill to proceed.
@@ -10,10 +12,10 @@
 
 ```json
 {
-  "claim_id": "CLM-3E74A707",
+  "claim_id": "CLM-42C01D2F",
   "pipeline_version": "1.0.0",
-  "started_at": "2026-06-13T10:47:33.760649Z",
-  "completed_at": "2026-06-13T10:47:33.760846Z",
+  "started_at": "2026-06-13T11:26:15.975377Z",
+  "completed_at": "2026-06-13T11:26:15.975578Z",
   "steps": [
     {
       "step": "INTAKE",
@@ -105,10 +107,10 @@
 
 ```json
 {
-  "claim_id": "CLM-E4EE88BF",
+  "claim_id": "CLM-0826618E",
   "pipeline_version": "1.0.0",
-  "started_at": "2026-06-13T10:47:33.760899Z",
-  "completed_at": "2026-06-13T10:47:33.760929Z",
+  "started_at": "2026-06-13T11:26:15.975632Z",
+  "completed_at": "2026-06-13T11:26:15.975665Z",
   "steps": [
     {
       "step": "INTAKE",
@@ -192,10 +194,10 @@
 
 ```json
 {
-  "claim_id": "CLM-6545D13C",
+  "claim_id": "CLM-A2559CD4",
   "pipeline_version": "1.0.0",
-  "started_at": "2026-06-13T10:47:33.760956Z",
-  "completed_at": "2026-06-13T10:47:33.761084Z",
+  "started_at": "2026-06-13T11:26:15.975693Z",
+  "completed_at": "2026-06-13T11:26:15.975824Z",
   "steps": [
     {
       "step": "INTAKE",
@@ -363,10 +365,10 @@
 
 ```json
 {
-  "claim_id": "CLM-DEE88CC2",
+  "claim_id": "CLM-A5C8AFCF",
   "pipeline_version": "1.0.0",
-  "started_at": "2026-06-13T10:47:33.761120Z",
-  "completed_at": "2026-06-13T10:47:33.761317Z",
+  "started_at": "2026-06-13T11:26:15.975862Z",
+  "completed_at": "2026-06-13T11:26:15.976061Z",
   "steps": [
     {
       "step": "INTAKE",
@@ -704,10 +706,10 @@
 
 ```json
 {
-  "claim_id": "CLM-5130C298",
+  "claim_id": "CLM-90517AA5",
   "pipeline_version": "1.0.0",
-  "started_at": "2026-06-13T10:47:33.761365Z",
-  "completed_at": "2026-06-13T10:47:33.761498Z",
+  "started_at": "2026-06-13T11:26:15.976114Z",
+  "completed_at": "2026-06-13T11:26:15.976249Z",
   "steps": [
     {
       "step": "INTAKE",
@@ -990,10 +992,10 @@
 
 ```json
 {
-  "claim_id": "CLM-0C91DA18",
+  "claim_id": "CLM-918A59FB",
   "pipeline_version": "1.0.0",
-  "started_at": "2026-06-13T10:47:33.761538Z",
-  "completed_at": "2026-06-13T10:47:33.761810Z",
+  "started_at": "2026-06-13T11:26:15.976440Z",
+  "completed_at": "2026-06-13T11:26:15.976574Z",
   "steps": [
     {
       "step": "INTAKE",
@@ -1295,10 +1297,10 @@
 
 ```json
 {
-  "claim_id": "CLM-5765C504",
+  "claim_id": "CLM-27546A18",
   "pipeline_version": "1.0.0",
-  "started_at": "2026-06-13T10:47:33.761856Z",
-  "completed_at": "2026-06-13T10:47:33.761994Z",
+  "started_at": "2026-06-13T11:26:15.976617Z",
+  "completed_at": "2026-06-13T11:26:15.976745Z",
   "steps": [
     {
       "step": "INTAKE",
@@ -1609,10 +1611,10 @@
 
 ```json
 {
-  "claim_id": "CLM-6A47A47C",
+  "claim_id": "CLM-10DDB5FB",
   "pipeline_version": "1.0.0",
-  "started_at": "2026-06-13T10:47:33.762051Z",
-  "completed_at": "2026-06-13T10:47:33.762171Z",
+  "started_at": "2026-06-13T11:26:15.976787Z",
+  "completed_at": "2026-06-13T11:26:15.976915Z",
   "steps": [
     {
       "step": "INTAKE",
@@ -1922,10 +1924,10 @@
 
 ```json
 {
-  "claim_id": "CLM-5841F70A",
+  "claim_id": "CLM-AE9550D7",
   "pipeline_version": "1.0.0",
-  "started_at": "2026-06-13T10:47:33.762212Z",
-  "completed_at": "2026-06-13T10:47:33.762339Z",
+  "started_at": "2026-06-13T11:26:15.976955Z",
+  "completed_at": "2026-06-13T11:26:15.977083Z",
   "steps": [
     {
       "step": "INTAKE",
@@ -2244,10 +2246,10 @@
 
 ```json
 {
-  "claim_id": "CLM-72E57F84",
+  "claim_id": "CLM-533A0982",
   "pipeline_version": "1.0.0",
-  "started_at": "2026-06-13T10:47:33.762377Z",
-  "completed_at": "2026-06-13T10:47:33.762511Z",
+  "started_at": "2026-06-13T11:26:15.977122Z",
+  "completed_at": "2026-06-13T11:26:15.977254Z",
   "steps": [
     {
       "step": "INTAKE",
@@ -2577,10 +2579,10 @@
 
 ```json
 {
-  "claim_id": "CLM-52202552",
+  "claim_id": "CLM-D27F78ED",
   "pipeline_version": "1.0.0",
-  "started_at": "2026-06-13T10:47:33.762549Z",
-  "completed_at": "2026-06-13T10:47:33.762680Z",
+  "started_at": "2026-06-13T11:26:15.977292Z",
+  "completed_at": "2026-06-13T11:26:15.977428Z",
   "steps": [
     {
       "step": "INTAKE",
@@ -2890,10 +2892,10 @@
 
 ```json
 {
-  "claim_id": "CLM-6BB855A4",
+  "claim_id": "CLM-BC7B836E",
   "pipeline_version": "1.0.0",
-  "started_at": "2026-06-13T10:47:33.762722Z",
-  "completed_at": "2026-06-13T10:47:33.762833Z",
+  "started_at": "2026-06-13T11:26:15.977470Z",
+  "completed_at": "2026-06-13T11:26:15.977581Z",
   "steps": [
     {
       "step": "INTAKE",

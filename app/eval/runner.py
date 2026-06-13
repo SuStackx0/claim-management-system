@@ -104,7 +104,14 @@ class EvalRunner:
     @staticmethod
     def render_markdown(report: EvalReport) -> str:
         lines = ["# Eval Report — 12 Test Cases", "",
-                 f"**Result: {report.passed}/{report.passed + report.failed} passed**", ""]
+                 f"**Result: {report.passed}/{report.passed + report.failed} passed**", "",
+                 "> These cases run against the deterministic `MockClient` by design: "
+                 "`test_cases.json` ships document *content* as structured fixtures (no image "
+                 "files), so the eval validates the decision engine — policy checks, financial "
+                 "math, consistency, fraud, and the full trace — independently of the stochastic "
+                 "LLM perception layer. The real Gemini vision/extraction path is the same "
+                 "Orchestrator with the `LLMClient` swapped, and is exercised separately via the "
+                 "live API and the `@pytest.mark.live` tests.", ""]
         for c in report.cases:
             lines += [f"## {c.case_id} — {c.case_name}",
                       f"- Expected: `{c.expected_decision}` | Produced: `{c.produced_decision}`"
