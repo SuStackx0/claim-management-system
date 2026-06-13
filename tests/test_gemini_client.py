@@ -44,16 +44,29 @@ def make_doc(file_bytes: bytes = b"fake-image-data", mime_type: str = "image/jpe
     )
 
 
-def make_client(timeout_s: int = 30) -> GeminiClient:
+def make_client(timeout_s: int = 30, max_retries: int = 0) -> GeminiClient:
     """Build a GeminiClient whose __init__ is bypassed.
 
     sys.modules already has mock google.genai entries (module-level setup above),
     so even if __init__ ran it would be safe — but we skip it anyway for speed.
+
+    max_retries defaults to 0 so error-mapping tests assert the raised error without
+    retrying/sleeping; retry tests pass max_retries explicitly. _sleep is a no-op so
+    retries never incur real wall-clock delay.
     """
     client = object.__new__(GeminiClient)
     client._client = MagicMock()
     client.model = "gemini-2.5-flash"
     client.timeout_s = timeout_s
+    client.max_retries = max_retries
+    client.backoff_base_s = 1.0
+    client.backoff_cap_s = 30.0
+    client._slept: list[float] = []
+
+    async def _fake_sleep(seconds):
+        client._slept.append(seconds)
+
+    client._sleep = _fake_sleep
     return client
 
 
@@ -241,6 +254,69 @@ async def test_llm_error_propagates_unchanged():
             await client.classify_document(make_doc())
 
     assert exc_info.value is original
+
+
+# ---------------------------------------------------------------------------
+# retry-with-backoff on transient errors
+# ---------------------------------------------------------------------------
+
+async def test_call_retries_rate_limit_then_succeeds():
+    """A 429 on the first call should be retried and succeed on the next."""
+    client = make_client(max_retries=3)
+    calls = {"n": 0}
+
+    async def flaky(parts, schema=None):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise Exception("429 RESOURCE_EXHAUSTED")
+        return json.dumps({"detected_type": "PRESCRIPTION", "readability": "GOOD", "confidence": 0.9})
+
+    client._generate = flaky
+    with patch.object(client, "_image_part", return_value="mock-part"):
+        result = await client.classify_document(make_doc())
+
+    assert result.detected_type == "PRESCRIPTION"
+    assert calls["n"] == 2            # one failure + one success
+    assert len(client._slept) == 1    # backed off exactly once
+
+
+async def test_call_gives_up_after_max_retries():
+    """Persistent 429s exhaust the retry budget, then raise RATE_LIMIT."""
+    client = make_client(max_retries=2)
+
+    async def always_429(parts, schema=None):
+        raise Exception("429 RESOURCE_EXHAUSTED")
+
+    client._generate = always_429
+    with patch.object(client, "_image_part", return_value="mock-part"):
+        with pytest.raises(LLMError) as exc_info:
+            await client.classify_document(make_doc())
+
+    assert exc_info.value.kind == LLMErrorKind.RATE_LIMIT
+    assert len(client._slept) == 2    # max_retries backoffs, then give up
+
+
+async def test_call_does_not_retry_non_retryable():
+    """A non-retryable PROVIDER_ERROR must fail immediately with no backoff."""
+    client = make_client(max_retries=3)
+
+    async def bad(parts, schema=None):
+        raise Exception("Internal server error")   # non-429 -> retryable=False
+
+    client._generate = bad
+    with patch.object(client, "_image_part", return_value="mock-part"):
+        with pytest.raises(LLMError) as exc_info:
+            await client.classify_document(make_doc())
+
+    assert exc_info.value.kind == LLMErrorKind.PROVIDER_ERROR
+    assert client._slept == []         # never slept
+
+
+def test_parse_retry_delay():
+    """Gemini's returned retry delay is honored when present, else None."""
+    assert GeminiClient._parse_retry_delay("retryDelay': '25s'") == 25.0
+    assert GeminiClient._parse_retry_delay("Please retry in 25.18s") == 25.18
+    assert GeminiClient._parse_retry_delay("no delay here") is None
 
 
 # ---------------------------------------------------------------------------

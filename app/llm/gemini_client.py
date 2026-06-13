@@ -1,5 +1,5 @@
 from __future__ import annotations
-import asyncio, json
+import asyncio, json, re
 from pydantic import BaseModel, ValidationError
 from app.llm.base import DocClassification, ExtractionOutput, LLMError, LLMErrorKind, NameMatch
 from app.models.domain import DocumentInput
@@ -24,11 +24,22 @@ fuzzy=true when they match but not exactly (initials, order, honorifics)."""
 
 
 class GeminiClient:
-    def __init__(self, api_key: str, model: str = "gemini-2.5-flash", timeout_s: int = 30):
+    def __init__(self, api_key: str, model: str = "gemini-2.5-flash", timeout_s: int = 30,
+                 max_retries: int = 3, backoff_base_s: float = 1.0, backoff_cap_s: float = 30.0):
         from google import genai
         self._client = genai.Client(api_key=api_key)
         self.model = model
         self.timeout_s = timeout_s
+        self.max_retries = max_retries          # transient-error retries (429/timeout/provider blips)
+        self.backoff_base_s = backoff_base_s
+        self.backoff_cap_s = backoff_cap_s
+        self._sleep = asyncio.sleep             # injectable for tests
+
+    @staticmethod
+    def _parse_retry_delay(detail: str) -> float | None:
+        """Honor the delay Gemini returns on a 429 (e.g. retryDelay '25s' / 'retry in 25.1s')."""
+        m = re.search(r"retry\D*?(\d+(?:\.\d+)?)\s*s", detail, re.I)
+        return float(m.group(1)) if m else None
 
     async def _generate(self, parts: list, schema: type[BaseModel] | None = None) -> str:
         from google.genai import types
@@ -57,6 +68,18 @@ class GeminiClient:
                                      mime_type=doc.mime_type or "image/jpeg")
 
     async def _call(self, parts, out_model: type[BaseModel], feedback: str = ""):
+        """Retry transient failures (429/timeout/provider blips) with backoff; raise the rest."""
+        for attempt in range(self.max_retries + 1):
+            try:
+                return await self._attempt(parts, out_model, feedback)
+            except LLMError as e:
+                if not e.retryable or attempt == self.max_retries:
+                    raise
+                delay = self._parse_retry_delay(e.detail) or self.backoff_base_s * (2 ** attempt)
+                await self._sleep(min(delay, self.backoff_cap_s))
+
+    async def _attempt(self, parts, out_model: type[BaseModel], feedback: str):
+        """One end-to-end call. Self-corrects malformed JSON once; classifies LLM failures."""
         last_err = None
         for _ in range(2):
             try:
