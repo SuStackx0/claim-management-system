@@ -54,6 +54,31 @@ ClaimSubmission ──► Intake ──► DocVerifier ──► Extraction ─�
 
 ---
 
+## Resilience & Failure Modes
+
+The orchestrator is the failure boundary: **agents never throw past it.** Every step
+becomes a typed `StepResult`, and the decision is *computed from the trace*, so any
+outcome is reconstructable. Each failure class has a defined, tested response:
+
+| Failure | Response |
+|---|---|
+| **Fatal agent** (Intake, DocVerifier, patient mismatch) | Pipeline stops; HTTP 200 `STOPPED` with a specific, member-facing message |
+| **Degradable agent** (Extraction per-doc, Fraud) | Step `DEGRADED`/`SKIPPED`, confidence docked, pipeline continues, manual-review noted (TC011) |
+| **LLM** timeout / rate-limit / invalid schema | Wrapped in `LLMError`, one retry where sensible, else step `DEGRADED` — the app never 500s on an LLM problem |
+| **Bad client input** (malformed or invalid upload payload) | `422` with field detail — a client error, not a crash |
+| **Persistence** (SQLite write) failure | Logged; the computed decision is **still returned** — a side-effect failure never discards adjudication |
+| **Any unhandled error** | Global handler → structured `500 {"error": "internal_error"}`; full detail logged, internals never leaked to the member |
+
+### Single points of failure & scaling to 10×
+
+The current design is single-node by choice; the SPOFs are deliberate, deferred cuts
+sitting behind isolated seams (`LLMClient`, `Repository`, the agent `Protocol`,
+`rule_ref`) so each is a contained swap, not a rewrite. The full SPOF table and the
+10× plan (queue/workers, Postgres, provider limits, idempotency) live in
+**[docs/DESIGN_DECISIONS.md](docs/DESIGN_DECISIONS.md)**.
+
+---
+
 ## Project Structure
 
 ```
@@ -75,7 +100,7 @@ sample_docs/       ← 6 pre-generated demo images
 data/
   policy_terms.json   ← full policy: benefits, limits, exclusions, network discounts
   test_cases.json     ← 12 eval cases (TC001–TC012)
-tests/             ← 103+ tests, all pass
+tests/             ← 160+ tests, all pass
 ```
 
 ---
