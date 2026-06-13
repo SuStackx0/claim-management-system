@@ -98,8 +98,9 @@ class Aggregator(Agent):
         if f.get("network_discount"):
             nd_pct = f.get("network_discount_percent", 0)
             cp_pct = f.get("copay_percent", 0)
-            msg += (f" Network discount {nd_pct}% (−₹{f['network_discount']}) "
-                    f"applied first, then co-pay {cp_pct}% (−₹{f['copay']}).")
+            pre_copay = payable + f.get("copay", 0)
+            msg += (f" Network discount {nd_pct}% (−₹{f['network_discount']}) applied first"
+                    f" (net ₹{pre_copay}), then co-pay {cp_pct}% (−₹{f['copay']}).")
         elif f.get("copay"):
             cp_pct = f.get("copay_percent", 0)
             msg += f" A {cp_pct}% co-pay (−₹{f['copay']}) was applied."
