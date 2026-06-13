@@ -1,0 +1,278 @@
+/* ---------------------------------------------------------------------------
+   Plum Claims — design system. Ported from ui/render.py inject_css(), extended
+   with app shell, forms, tables and buttons. One visual language everywhere.
+--------------------------------------------------------------------------- */
+:root {
+  --pc-radius: 14px;
+  --pc-border: #e6e9ef;
+  --pc-muted: #6b7280;
+  --pc-ink: #111827;
+  --pc-bg: #f7f8fa;
+  --pc-sidebar: #ffffff;
+  --pc-accent: #1d4ed8;
+}
+
+* { box-sizing: border-box; }
+
+html, body, #root { height: 100%; margin: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+    Arial, sans-serif;
+  color: var(--pc-ink);
+  background: var(--pc-bg);
+  font-feature-settings: "cv11", "ss01";
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3 { letter-spacing: -0.01em; }
+h1 { font-size: 1.7rem; margin: 0 0 .25rem; }
+a { color: var(--pc-accent); text-decoration: none; }
+
+.pc-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.8rem;
+}
+
+/* --- App shell ----------------------------------------------------------- */
+.pc-shell { display: flex; min-height: 100vh; }
+
+.pc-sidebar {
+  width: 240px;
+  flex: none;
+  background: var(--pc-sidebar);
+  border-right: 1px solid var(--pc-border);
+  padding: 1.5rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: .4rem;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+}
+.pc-brand { font-size: 1.15rem; font-weight: 720; }
+.pc-brand-sub { color: var(--pc-muted); font-size: .82rem; margin-bottom: 1rem; }
+.pc-nav { display: flex; flex-direction: column; gap: .25rem; }
+.pc-nav a {
+  display: block;
+  padding: .55rem .75rem;
+  border-radius: 9px;
+  color: #374151;
+  font-weight: 550;
+  font-size: .92rem;
+}
+.pc-nav a:hover { background: #f1f3f7; }
+.pc-nav a.active { background: #eef2ff; color: var(--pc-accent); }
+.pc-sidebar-foot {
+  margin-top: auto;
+  font-size: .78rem;
+  color: var(--pc-muted);
+  line-height: 1.6;
+}
+
+.pc-main { flex: 1; min-width: 0; padding: 2.2rem 2.4rem 4rem; }
+.pc-main-inner { max-width: 920px; margin: 0 auto; }
+.pc-caption { color: var(--pc-muted); margin: 0 0 1.2rem; }
+.pc-divider { border: none; border-top: 1px solid var(--pc-border); margin: 1.2rem 0; }
+
+/* --- Card surface -------------------------------------------------------- */
+.pc-card {
+  background: #fff;
+  border: 1px solid var(--pc-border);
+  border-radius: var(--pc-radius);
+  padding: 1.25rem 1.4rem;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, .04), 0 1px 3px rgba(16, 24, 40, .06);
+}
+.pc-card + .pc-card { margin-top: .75rem; }
+
+/* --- Status pill --------------------------------------------------------- */
+.pc-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  padding: .28rem .7rem;
+  border-radius: 999px;
+  font-size: .8rem;
+  font-weight: 650;
+  line-height: 1;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+/* --- Decision hero ------------------------------------------------------- */
+.pc-hero { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: .25rem; }
+.pc-hero-amt { font-size: 1.9rem; font-weight: 720; color: var(--pc-ink); line-height: 1; }
+.pc-hero-amt small { font-size: .8rem; font-weight: 500; color: var(--pc-muted); display: block; margin-top: .2rem; }
+
+/* --- Confidence / progress meter ----------------------------------------- */
+.pc-meter { height: 8px; border-radius: 999px; background: #eef0f4; overflow: hidden; margin: .35rem 0 .15rem; }
+.pc-meter > span { display: block; height: 100%; border-radius: 999px; }
+.pc-meter-label { display: flex; justify-content: space-between; font-size: .82rem; color: var(--pc-muted); }
+
+/* --- Member message callout ---------------------------------------------- */
+.pc-callout {
+  border-left: 4px solid #cbd5e1;
+  background: #f8fafc;
+  padding: .75rem 1rem;
+  border-radius: 8px;
+  color: #1f2937;
+  font-size: .95rem;
+  line-height: 1.5;
+}
+
+/* --- Trace timeline ------------------------------------------------------ */
+.pc-step { border-bottom: 1px solid #f1f3f7; padding: .25rem 0; }
+.pc-step:last-child { border-bottom: none; }
+.pc-step-head {
+  display: flex;
+  align-items: center;
+  gap: .7rem;
+  padding: .4rem .15rem;
+  cursor: pointer;
+  width: 100%;
+  background: none;
+  border: none;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+.pc-step-dot {
+  width: 26px; height: 26px; border-radius: 999px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: .85rem; flex: none;
+}
+.pc-step-name { font-weight: 600; color: var(--pc-ink); }
+.pc-step-meta { color: var(--pc-muted); font-size: .8rem; }
+.pc-step-body { padding: .2rem 0 .7rem 2.4rem; font-size: .88rem; }
+.pc-step-body ul { margin: .2rem 0; padding-left: 1.1rem; }
+.pc-step-body li { margin: .2rem 0; }
+.pc-chiprow { display: flex; gap: .4rem; flex-wrap: wrap; margin: .2rem 0 .8rem; }
+
+/* Trace check rows */
+.pc-checks { display: flex; flex-direction: column; gap: .5rem; }
+.pc-check {
+  padding: .5rem .6rem;
+  background: #fafbfc;
+  border: 1px solid var(--pc-border);
+  border-radius: 8px;
+}
+.pc-check-head { display: flex; flex-wrap: wrap; gap: .45rem; align-items: baseline; font-size: .9rem; }
+.pc-rule {
+  margin-left: auto; color: #475569; background: #eef2f7;
+  padding: .05rem .4rem; border-radius: 6px; font-size: .75rem;
+}
+
+/* Clean key/value detail (replaces raw JSON dumps) */
+.pc-detail {
+  margin: .35rem 0 .1rem;
+  padding: .5rem .7rem;
+  background: #f8fafc;
+  border: 1px solid var(--pc-border);
+  border-radius: 8px;
+}
+.pc-kv { margin: 0; display: flex; flex-direction: column; gap: .1rem; }
+.pc-kv-row {
+  display: grid;
+  grid-template-columns: minmax(110px, 200px) 1fr;
+  gap: .7rem; padding: .12rem 0; align-items: baseline;
+}
+.pc-kv-key { color: var(--pc-muted); font-size: .8rem; font-weight: 600; }
+.pc-kv-val { font-size: .86rem; color: var(--pc-ink); word-break: break-word; }
+.pc-kv-list { margin: .15rem 0; padding-left: 1.1rem; }
+.pc-kv-list > li { margin: .15rem 0; }
+.pc-kv-list > li + li { border-top: 1px dashed #e6e9ef; padding-top: .35rem; }
+
+/* Error block */
+.pc-error-box {
+  margin: .45rem 0; padding: .55rem .75rem;
+  background: #fef2f2; border: 1px solid #fca5a5; border-radius: 8px;
+}
+.pc-error-title { color: #b91c1c; font-weight: 650; font-size: .82rem; margin-bottom: .25rem; }
+
+/* --- Eval ---------------------------------------------------------------- */
+.pc-summary-num { font-size: 2.6rem; font-weight: 760; line-height: 1; }
+.pc-summary-sub { color: var(--pc-muted); font-size: .9rem; }
+.pc-case { display: flex; align-items: center; gap: .8rem; padding: .2rem 0; }
+.pc-case-id { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .82rem; color: var(--pc-muted); }
+
+/* --- Forms --------------------------------------------------------------- */
+.pc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem 1.4rem; margin-bottom: 1.2rem; }
+@media (max-width: 680px) { .pc-grid { grid-template-columns: 1fr; } }
+.pc-field-full { grid-column: 1 / -1; }
+.pc-field { display: flex; flex-direction: column; gap: .3rem; }
+.pc-label { font-size: .85rem; font-weight: 600; color: #374151; }
+.pc-help { font-size: .76rem; color: var(--pc-muted); }
+.pc-input, .pc-select {
+  padding: .55rem .7rem;
+  border: 1px solid var(--pc-border);
+  border-radius: 9px;
+  font: inherit;
+  background: #fff;
+  color: var(--pc-ink);
+}
+.pc-input:focus, .pc-select:focus { outline: 2px solid #c7d2fe; border-color: var(--pc-accent); }
+.pc-filedrop {
+  border: 1.5px dashed #cbd5e1;
+  border-radius: 10px;
+  padding: .8rem;
+  background: #fafbfc;
+  font-size: .88rem;
+}
+.pc-filelist { margin: .5rem 0 0; padding-left: 1.1rem; font-size: .82rem; color: var(--pc-muted); }
+
+/* --- Buttons ------------------------------------------------------------- */
+.pc-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+  padding: .65rem 1.1rem;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  font: inherit; font-weight: 650;
+  cursor: pointer;
+  background: var(--pc-accent); color: #fff;
+}
+.pc-btn:hover { background: #1e40af; }
+.pc-btn:disabled { opacity: .55; cursor: not-allowed; }
+.pc-btn-full { width: 100%; }
+.pc-btn-ghost { background: #fff; color: #374151; border-color: var(--pc-border); }
+.pc-btn-ghost:hover { background: #f1f3f7; }
+
+/* --- Details / summary disclosure ---------------------------------------- */
+details { margin-top: .5rem; }
+details summary {
+  list-style: none;
+  cursor: pointer;
+}
+details summary::-webkit-details-marker { display: none; }
+details[open] summary { margin-bottom: .6rem; }
+
+/* --- Tables -------------------------------------------------------------- */
+.pc-table-wrap { overflow: auto; border: 1px solid var(--pc-border); border-radius: var(--pc-radius); background: #fff; }
+.pc-table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+.pc-table th, .pc-table td { padding: .6rem .8rem; text-align: left; border-bottom: 1px solid #f1f3f7; white-space: nowrap; }
+.pc-table th { background: #f9fafb; font-weight: 650; color: #374151; position: sticky; top: 0; }
+.pc-table tr:last-child td { border-bottom: none; }
+.pc-table tr.clickable { cursor: pointer; }
+.pc-table tr.clickable:hover td { background: #f8fafc; }
+.pc-table tr.selected td { background: #eef2ff; }
+
+/* --- Status / feedback boxes --------------------------------------------- */
+.pc-alert { border-radius: 10px; padding: .8rem 1rem; font-size: .92rem; line-height: 1.5; border: 1px solid; margin-top: .75rem; }
+.pc-alert-success { background: #dcfce7; border-color: #86efac; color: #14532d; }
+.pc-alert-warning { background: #fef3c7; border-color: #fcd34d; color: #78350f; }
+.pc-alert-error   { background: #fee2e2; border-color: #fca5a5; color: #7f1d1d; }
+.pc-alert-info    { background: #dbeafe; border-color: #93c5fd; color: #1e3a8a; }
+
+.pc-spinner {
+  width: 18px; height: 18px; border-radius: 999px;
+  border: 2.5px solid #c7d2fe; border-top-color: var(--pc-accent);
+  animation: pc-spin .7s linear infinite; display: inline-block; vertical-align: middle;
+}
+@keyframes pc-spin { to { transform: rotate(360deg); } }
+
+.pc-stage { display: flex; gap: .6rem; align-items: baseline; padding: .18rem 0; }
+.pc-stage-n { color: #9ca3af; }
+.pc-stage-name { font-weight: 600; color: var(--pc-ink); }
+.pc-stage-desc { color: var(--pc-muted); font-size: .85rem; }
+
+.pc-muted { color: var(--pc-muted); }
+.pc-section-title { font-size: 1.05rem; font-weight: 680; margin: 1.4rem 0 .6rem; }

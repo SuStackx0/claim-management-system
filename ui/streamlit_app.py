@@ -11,7 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import streamlit as st
 
 from ui.helpers import get, post
-from ui.render import render_decision, render_trace
+from ui.render import render_decision, render_trace, inject_css, status_pill
 
 # ---------------------------------------------------------------------------
 # Page config
@@ -21,6 +21,19 @@ st.set_page_config(
     page_icon="🏥",
     layout="wide",
 )
+
+inject_css()
+
+# Pipeline stages shown in the processing status (single source of truth).
+_PIPELINE_STAGES = [
+    ("Intake", "Validating member, policy & required documents"),
+    ("Documents", "Reading uploaded bills, prescriptions & reports"),
+    ("Extraction", "Extracting structured fields from documents"),
+    ("Consistency", "Cross-checking amounts, dates & member details"),
+    ("Adjudication", "Applying policy rules & computing the payout"),
+    ("Fraud", "Scanning for anomalies & duplicate claims"),
+    ("Decision", "Finalising the outcome & member message"),
+]
 
 # ---------------------------------------------------------------------------
 # Sidebar navigation
@@ -35,20 +48,26 @@ with st.sidebar:
         label_visibility="collapsed",
     )
     st.divider()
-    st.caption("Plum Health Insurance · PLUM_GHI_2024")
+    st.markdown(
+        '<div style="font-size:.8rem;color:#6b7280;line-height:1.6;">'
+        'Plum Health Insurance<br>'
+        '<span class="pc-mono">PLUM_GHI_2024</span>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
 
 # ---------------------------------------------------------------------------
 # Page: Submit Claim
 # ---------------------------------------------------------------------------
 if page == "Submit Claim":
-    st.title("🏥 Submit a Claim")
-    st.caption("Fill in the details below and upload supporting documents. Processing takes 15–25 seconds.")
+    st.title("Submit a Claim")
+    st.caption("Fill in the details, attach supporting documents, and the AI pipeline will adjudicate in 15–25 seconds.")
     st.divider()
 
     members = get("/members")
 
     with st.form("claim_form"):
-        st.subheader("Member & Claim Details")
+        st.subheader("Member & claim details")
         col1, col2 = st.columns(2)
         with col1:
             member = st.selectbox(
@@ -86,7 +105,7 @@ if page == "Submit Claim":
             )
 
         st.divider()
-        submitted = st.form_submit_button("🚀 Submit Claim", type="primary", use_container_width=True)
+        submitted = st.form_submit_button("Submit Claim", type="primary", use_container_width=True)
 
     if submitted:
         payload = {
@@ -97,14 +116,28 @@ if page == "Submit Claim":
             "claimed_amount": int(amount),
             "hospital_name": hospital or None,
         }
-        with st.status("Processing claim through AI pipeline…", expanded=True) as status_box:
-            st.write("Submitting to pipeline...")
+        with st.status("Processing claim through the AI pipeline", expanded=True) as status_box:
+            # A calm, ordered preview of the stages the claim passes through —
+            # rendered once, no raw dumps, no per-token chatter.
+            stage_html = "".join(
+                f'<div style="display:flex;gap:.6rem;align-items:baseline;padding:.18rem 0;">'
+                f'<span style="color:#9ca3af;">{i + 1}.</span>'
+                f'<span style="font-weight:600;color:#111827;">{name}</span>'
+                f'<span style="color:#6b7280;font-size:.85rem;">— {desc}</span>'
+                f'</div>'
+                for i, (name, desc) in enumerate(_PIPELINE_STAGES)
+            )
+            st.markdown(
+                f'<div style="margin:.1rem 0 .2rem;">{stage_html}</div>',
+                unsafe_allow_html=True,
+            )
             out = post(
                 "/claims/upload",
                 data={"payload": json.dumps(payload)},
                 files=[("files", (f.name, f.getvalue(), f.type)) for f in (files or [])],
             )
-            status_box.update(label="Pipeline complete!", state="complete", expanded=False)
+            status_box.update(label="Pipeline complete", state="complete", expanded=False)
+
         st.divider()
         render_decision(out)
 
@@ -112,23 +145,22 @@ if page == "Submit Claim":
 # Page: Review Claims
 # ---------------------------------------------------------------------------
 elif page == "Review Claims":
-    st.title("📋 Claims Review")
-    st.caption("Browse all submitted claims and inspect the AI pipeline decision for each.")
+    st.title("Claims Review")
+    st.caption("Browse every submitted claim and inspect the full AI pipeline decision for each.")
     st.divider()
 
     claims = get("/claims")
     if not claims:
-        st.info("No claims have been submitted yet. Use **Submit Claim** to create one.")
+        st.info("No claims have been submitted yet. Head to **Submit Claim** to create your first one.")
     else:
-        st.subheader(f"All Claims ({len(claims)} total)")
-        # show a tidy summary table
+        st.subheader(f"All claims · {len(claims)}")
         st.dataframe(
             claims,
             use_container_width=True,
             hide_index=True,
         )
         st.divider()
-        st.subheader("Inspect a Claim")
+        st.subheader("Inspect a claim")
         cid = st.selectbox(
             "Select claim ID",
             [c["claim_id"] for c in claims],
@@ -143,38 +175,77 @@ elif page == "Review Claims":
 # Page: Eval (12 cases)
 # ---------------------------------------------------------------------------
 else:
-    st.title("🧪 Eval — 12 Assignment Test Cases")
-    st.caption("Runs all 12 predefined test cases through the pipeline and checks each decision against the expected outcome.")
+    st.title("Eval — 12 Assignment Test Cases")
+    st.caption("Runs all 12 predefined cases through the pipeline and checks each decision against its expected outcome.")
     st.divider()
 
-    if st.button("▶ Run all 12 test cases", type="primary"):
-        with st.spinner("Running eval — this takes approximately 3 minutes…"):
+    if st.button("Run all 12 test cases", type="primary"):
+        with st.status("Running evaluation suite · 12 cases · ~3 minutes", expanded=True) as eval_box:
+            st.markdown(
+                '<div style="color:#6b7280;font-size:.9rem;">'
+                'Each case is submitted to the live pipeline and its decision is compared '
+                'against the expected outcome. Sit tight — results appear below when complete.'
+                '</div>',
+                unsafe_allow_html=True,
+            )
             report = post("/eval/run")
+            eval_box.update(label="Evaluation complete", state="complete", expanded=False)
 
-        # --- summary metrics ---
+        # --- summary ---
         passed = report["passed"]
         total = 12
         failed = total - passed
-        st.subheader("Results")
-        mc1, mc2, mc3 = st.columns(3)
-        mc1.metric("Passed", f"{passed}/{total}", delta=None)
-        mc2.metric("Failed", str(failed), delta=None)
-        mc3.metric("Pass Rate", f"{passed/total:.0%}", delta=None)
+        rate = passed / total
+        summary_color = "#15803d" if passed == total else ("#b45309" if passed >= total * 0.8 else "#b91c1c")
 
-        if passed == total:
-            st.success(f"🎉 All {total} test cases passed!")
-        elif passed >= total * 0.8:
-            st.warning(f"⚠️ {passed}/{total} passed — {failed} case(s) need attention.")
-        else:
-            st.error(f"❌ {passed}/{total} passed — significant failures detected.")
+        st.markdown(
+            f'<div class="pc-card">'
+            f'<div style="display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap;">'
+            f'  <div>'
+            f'    <div class="pc-summary-num" style="color:{summary_color};">{passed} / {total}</div>'
+            f'    <div class="pc-summary-sub">test cases passed</div>'
+            f'  </div>'
+            f'  <div style="flex:1;min-width:220px;">'
+            f'    <div style="display:flex;justify-content:space-between;font-size:.82rem;color:#6b7280;margin-bottom:.25rem;">'
+            f'      <span>Pass rate</span><span style="color:{summary_color};font-weight:650;">{rate:.0%}</span>'
+            f'    </div>'
+            f'    <div class="pc-meter" style="height:10px;"><span style="width:{rate*100:.0f}%;background:{summary_color};"></span></div>'
+            f'    <div class="pc-summary-sub" style="margin-top:.4rem;">'
+            f'      {passed} passed · {failed} failed'
+            f'    </div>'
+            f'  </div>'
+            f'</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
 
-        st.divider()
-        st.subheader("Per-case Detail")
+        st.markdown("")  # breathing room
+        st.subheader("Per-case results")
+
         for c in report["cases"]:
-            icon = "✅" if c["passed"] else "❌"
-            label = f"{icon} {c['case_id']} — {c['case_name']}: {c['produced_decision']}"
-            with st.expander(label):
-                st.markdown(f"**Member message:** {c['member_message']}")
+            ok = c["passed"]
+            pill_status = "APPROVED" if ok else "REJECTED"
+            pill_text = "PASS" if ok else "FAIL"
+            # Clean status-chip row as the expander surface.
+            st.markdown(
+                f'<div class="pc-case">'
+                f'  {status_pill(pill_status, text=pill_text)}'
+                f'  <span class="pc-case-id">{c["case_id"]}</span>'
+                f'  <span style="font-weight:600;color:#111827;">{c["case_name"]}</span>'
+                f'  <span style="color:#6b7280;">→</span>'
+                f'  <span class="pc-mono">{c["produced_decision"]}</span>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+            icon = "✅" if ok else "❌"
+            with st.expander(f"{icon} {c['case_id']} — details"):
+                st.markdown("**Member message**")
+                st.markdown(
+                    f'<div class="pc-callout">{c["member_message"]}</div>',
+                    unsafe_allow_html=True,
+                )
                 if c["failures"]:
+                    st.markdown("**Mismatches**")
                     st.error("; ".join(c["failures"]))
+                st.markdown("")
                 render_trace(c["trace"])
