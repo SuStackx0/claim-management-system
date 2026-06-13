@@ -116,9 +116,9 @@ export default function EvalRunner() {
         <div className="pc-alert pc-alert-info">No eval cases are configured.</div>
       )}
 
-      {/* Per-case grid */}
+      {/* Per-case list — full-width stacked rows */}
       {!loadingList && !listError && cases.length > 0 && (
-        <div className="pc-eval-grid">
+        <div className="pc-eval-list">
           {cases.map((summary) => {
             const isRunning = !!running[summary.case_id];
             const result = results[summary.case_id];
@@ -134,52 +134,55 @@ export default function EvalRunner() {
               : "";
 
             return (
-              <div key={summary.case_id} className={`pc-card pc-eval-card ${stateClass}`}>
-                <div className="pc-eval-card-head">
-                  <span className="pc-case-id">{summary.case_id}</span>
-                  {result && (
-                    <StatusPill
-                      status={result.passed ? "APPROVED" : "REJECTED"}
-                      text={result.passed ? "PASS" : "FAIL"}
-                    />
-                  )}
+              <div key={summary.case_id} className={`pc-card pc-eval-row ${stateClass}`}>
+                <div className="pc-eval-row-head">
+                  <div className="pc-eval-row-info">
+                    <div className="pc-eval-row-title">
+                      <span className="pc-case-id">{summary.case_id}</span>
+                      <span className="pc-eval-name">{summary.case_name}</span>
+                      {result && (
+                        <StatusPill
+                          status={result.passed ? "APPROVED" : "REJECTED"}
+                          text={result.passed ? "PASS" : "FAIL"}
+                        />
+                      )}
+                    </div>
+
+                    <div className="pc-eval-expected">
+                      Expected:{" "}
+                      <span className="pc-mono">
+                        {stopsEarly ? "stops early" : summary.expected.decision ?? "—"}
+                      </span>
+                      {summary.expected.approved_amount != null && (
+                        <span> · ₹{summary.expected.approved_amount.toLocaleString()}</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <button
+                    className="pc-btn pc-eval-row-btn"
+                    disabled={isRunning}
+                    onClick={() => runCase(summary.case_id)}
+                  >
+                    {isRunning ? (
+                      <>
+                        <span className="pc-spinner" />
+                        Running…
+                      </>
+                    ) : result ? (
+                      "Re-run live"
+                    ) : (
+                      "Run live"
+                    )}
+                  </button>
                 </div>
-
-                <div className="pc-eval-name">{summary.case_name}</div>
-
-                <div className="pc-eval-expected">
-                  Expected:{" "}
-                  <span className="pc-mono">
-                    {stopsEarly ? "stops early" : summary.expected.decision ?? "—"}
-                  </span>
-                  {summary.expected.approved_amount != null && (
-                    <span> · ₹{summary.expected.approved_amount.toLocaleString()}</span>
-                  )}
-                </div>
-
-                <button
-                  className="pc-btn pc-btn-full"
-                  disabled={isRunning}
-                  onClick={() => runCase(summary.case_id)}
-                >
-                  {isRunning ? (
-                    <>
-                      <span className="pc-spinner" />
-                      Running vision pipeline…
-                    </>
-                  ) : result ? (
-                    "Re-run live"
-                  ) : (
-                    "Run live"
-                  )}
-                </button>
 
                 {cardError && (
                   <div className="pc-alert pc-alert-error">{cardError}</div>
                 )}
 
                 {result && !isRunning && (
-                  <div style={{ marginTop: "0.85rem" }}>
+                  <div className="pc-eval-row-result">
                     <div className="pc-eval-facts">
                       <span>
                         <span className="pc-muted">Produced: </span>
