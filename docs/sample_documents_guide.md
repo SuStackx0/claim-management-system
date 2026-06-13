@@ -272,3 +272,16 @@ blurred = cv2.GaussianBlur(image, (15, 15), 0)
 # or add noise for poor quality simulation
 ```
 
+---
+
+## New Sample Documents (added 2026-06-13)
+
+The following five documents were added to `sample_docs/` to broaden coverage beyond the original six. Run `python scripts/generate_sample_docs.py` to regenerate all 11 files.
+
+| Filename | Doc Type | Scenario Exercised |
+|---|---|---|
+| `lab_report_cbc.png` | Diagnostic / Lab Report | CBC + Dengue panel for EMP001 (Rajesh Kumar). Exercises the **DIAGNOSTIC** claim category: NABL-accredited lab letterhead, structured result table with reference ranges, a flagged high-neutrophil result, and pathologist signature. Tests structured extraction, normal-range comparison, and `LAB_REPORT` document-type detection. |
+| `hospital_bill_highvalue.png` | Hospital Bill (Inpatient) | 4-night inpatient stay (Typhoid fever) totalling **Rs. 61,830 net** / Rs. 55,647 insurance-claimable. Exceeds the manual-review amount threshold, so it exercises the **fraud/high-value adjudication path**. Includes room charges, nursing, pharmacy sub-limit line, and network-discount calculations. |
+| `discharge_summary.png` | Discharge Summary | Companion document to `hospital_bill_highvalue.png` — same admission (IP2024-08441, 05-Nov to 09-Nov-2024). Exercises **date-range extraction**, diagnosis parsing (Enteric Fever, confirmed by blood culture), treatment-given section, and discharge-medication list. Required when the adjudication agent validates an inpatient claim against supporting clinical notes. |
+| `vision_prescription.png` | Optical / Vision Prescription | Spectacle Rx for EMP001 with sphere/cylinder/axis/add table for both eyes, plus a progressive-lens recommendation (~Rs. 4,500–7,000). Exercises the **VISION** claim category and tests lens-power extraction, pupillary-distance field, and annual vision-benefit note. |
+| `unrelated_receipt.png` | Retail / Supermarket Receipt | A FreshMart grocery cash memo — groceries, household items, no medical content. Exercises **document-type rejection**: the Document Verification agent must classify this as `UNKNOWN`/non-medical and stop the pipeline early rather than attempting medical-field extraction. |

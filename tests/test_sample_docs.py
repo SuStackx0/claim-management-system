@@ -75,4 +75,8 @@ def test_script_prints_count(tmp_path):
         [sys.executable, str(SCRIPT), "--out", str(tmp_path)],
         capture_output=True, text=True, cwd=str(PROJECT),
     )
-    assert "6" in result.stdout, f"expected '6' in stdout: {result.stdout!r}"
+    # The reported count must match the number of PNGs actually written (robust to
+    # adding more sample docs over time).
+    written = len(list(tmp_path.glob("*.png")))
+    assert written >= 6, f"expected at least the 6 originals, wrote {written}"
+    assert str(written) in result.stdout, f"expected '{written}' in stdout: {result.stdout!r}"
