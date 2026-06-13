@@ -19,7 +19,8 @@ ENV PYTHONUNBUFFERED=1 \
     LLM_PROVIDER=mock \
     DB_PATH=/tmp/claims.db \
     POLICY_PATH=data/policy_terms.json \
-    TEST_CASES_PATH=data/test_cases.json
+    TEST_CASES_PATH=data/test_cases.json \
+    LOG_LEVEL=INFO
 
 EXPOSE 8000
 

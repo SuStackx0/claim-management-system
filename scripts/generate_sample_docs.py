@@ -542,6 +542,627 @@ def unrelated_receipt(out: Path) -> None:
     img.save(out / "unrelated_receipt.png")
 
 
+# ── DEMO_TEST_CASES.md scenario documents ───────────────────────────────────
+# Each of the following backs a scenario in docs/DEMO_TEST_CASES.md. Patient
+# names match the policy roster so cross-document consistency passes (except the
+# deliberately mismatched wrong-patient bill). Amounts/diagnoses are set so the
+# named scenario's policy outcome is exercised.
+
+def prescription_diabetes(out: Path) -> None:
+    """Diabetes prescription for Vikram Joshi (EMP005, join 2024-09-01).
+    Diagnosis triggers the 90-day diabetes waiting period (treatment 2024-10-15)."""
+    bold, regular = _fonts()
+    img, d = _new()
+    y = _header(d, [
+        "Dr. Sunil Mehta, MBBS, MD (General Medicine)",
+        "Reg. No: GJ/56789/2014",
+        "Sunrise Medical Centre, 22 SG Highway, Ahmedabad — 380015",
+        "Ph: 079-26851234",
+    ], bold)
+    y = _text(d, [
+        "",
+        "Patient : Vikram Joshi                  Date : 15-Oct-2024",
+        "Age     : 45 yrs    Gender : M",
+        "Member ID: EMP005",
+        "",
+        "Diagnosis : Type 2 Diabetes Mellitus (newly detected)",
+        "            HbA1c 8.2%  |  FBS 168 mg/dL",
+        "",
+        "Rx:",
+        "  1. Tab Metformin 500 mg   —  1-0-1 (after food)  x 30 days",
+        "  2. Tab Glimepiride 1 mg   —  1-0-0 (before food)  x 30 days",
+        "  3. Tab Atorvastatin 10 mg —  0-0-1                x 30 days",
+        "",
+        "Advice : Diabetic diet, 30 min daily walk. Monitor fasting sugar.",
+        "         Review with FBS/PPBS after 4 weeks.",
+        "",
+        "Signature: ___________________________",
+    ], regular, y)
+    img.save(out / "prescription_diabetes.png")
+
+
+def bill_diabetes(out: Path) -> None:
+    """Consultation bill (Rs. 3,000) for Vikram Joshi — pairs with the diabetes Rx."""
+    bold, regular = _fonts()
+    img, d = _new(850)
+    y = _header(d, [
+        "Sunrise Medical Centre — Outpatient Bill",
+        "22 SG Highway, Ahmedabad 380015  |  GSTIN: 24SUNRI1234G1Z2",
+    ], bold)
+    y = _text(d, [
+        "",
+        "Bill No : SMC/2024/3310          Date : 15-Oct-2024",
+        "Patient : Vikram Joshi           Member ID : EMP005",
+        "Policy  : PLUM_GHI_2024",
+        "",
+        "Services Rendered:",
+    ], regular, y)
+    y = _line_items(d, [
+        ("Consultation Fee — Dr. Sunil Mehta", 800),
+        ("HbA1c Test", 700),
+        ("Fasting Blood Sugar + Lipid Profile", 1500),
+    ], regular, y)
+    y = _text(d, [
+        "",
+        "                               Total Billed : Rs. 3,000",
+        "",
+        "Authorised Signatory: ___________________________",
+    ], regular, y)
+    img.save(out / "bill_diabetes.png")
+
+
+def prescription_obesity(out: Path) -> None:
+    """Bariatric / obesity prescription for Anita Desai (EMP009).
+    Diagnosis matches the policy 'Obesity and weight loss programs' exclusion."""
+    bold, regular = _fonts()
+    img, d = _new()
+    y = _header(d, [
+        "Dr. P. Banerjee, MBBS, MS (Bariatric & Metabolic Surgery)",
+        "Reg. No: WB/34567/2015",
+        "Wellness Metabolic Clinic, 9 Park Street, Kolkata — 700016",
+        "Ph: 033-22650099",
+    ], bold)
+    y = _text(d, [
+        "",
+        "Patient : Anita Desai                   Date : 18-Oct-2024",
+        "Age     : 31 yrs    Gender : F",
+        "Member ID: EMP009",
+        "",
+        "Diagnosis : Morbid Obesity — BMI 37",
+        "",
+        "Plan / Treatment:",
+        "  - Bariatric Consultation",
+        "  - Customised Diet Plan and Weight-Loss Program (12 weeks)",
+        "  - Nutritional counselling, fortnightly review",
+        "",
+        "Advice : Calorie-restricted diet, supervised exercise.",
+        "         Evaluate for bariatric surgery if no response in 12 weeks.",
+        "",
+        "Signature: ___________________________",
+    ], regular, y)
+    img.save(out / "prescription_obesity.png")
+
+
+def bill_obesity(out: Path) -> None:
+    """Obesity-treatment bill (Rs. 8,000) for Anita Desai — pairs with obesity Rx."""
+    bold, regular = _fonts()
+    img, d = _new(850)
+    y = _header(d, [
+        "Wellness Metabolic Clinic — Outpatient Bill",
+        "9 Park Street, Kolkata 700016  |  GSTIN: 19WELLN1234K1Z9",
+    ], bold)
+    y = _text(d, [
+        "",
+        "Bill No : WMC/2024/0771          Date : 18-Oct-2024",
+        "Patient : Anita Desai            Member ID : EMP009",
+        "Policy  : PLUM_GHI_2024",
+        "",
+        "Services Rendered:",
+    ], regular, y)
+    y = _line_items(d, [
+        ("Bariatric Consultation", 3000),
+        ("Personalised Diet and Nutrition Program (12 wks)", 5000),
+    ], regular, y)
+    y = _text(d, [
+        "",
+        "                               Total Billed : Rs. 8,000",
+        "",
+        "Authorised Signatory: ___________________________",
+    ], regular, y)
+    img.save(out / "bill_obesity.png")
+
+
+def prescription_gastro(out: Path) -> None:
+    """Gastroenteritis prescription for Amit Verma (EMP003). Covered condition;
+    pairs with an over-limit bill to demonstrate the per-claim limit rejection."""
+    bold, regular = _fonts()
+    img, d = _new()
+    y = _header(d, [
+        "Dr. R. Gupta, MBBS, MD (Gastroenterology)",
+        "Reg. No: DL/34567/2016",
+        "Capital Care Clinic, 14 Connaught Place, New Delhi — 110001",
+        "Ph: 011-23412345",
+    ], bold)
+    y = _text(d, [
+        "",
+        "Patient : Amit Verma                    Date : 20-Oct-2024",
+        "Age     : 35 yrs    Gender : M",
+        "Member ID: EMP003",
+        "",
+        "Diagnosis : Acute Gastroenteritis with dehydration",
+        "",
+        "Rx:",
+        "  1. Tab Ofloxacin + Ornidazole — 1-0-1  x 5 days",
+        "  2. Cap Probiotics             — 1-0-1  x 5 days",
+        "  3. ORS sachets                — as required",
+        "  4. Tab Pantoprazole 40 mg     — 1-0-0  x 5 days",
+        "",
+        "Advice : Oral rehydration, bland diet, avoid outside food.",
+        "",
+        "Signature: ___________________________",
+    ], regular, y)
+    img.save(out / "prescription_gastro.png")
+
+
+def bill_overlimit(out: Path) -> None:
+    """Consultation bill totalling Rs. 7,500 for Amit Verma — above the
+    Rs. 5,000 per-claim limit, so the claim is rejected on PER_CLAIM_EXCEEDED."""
+    bold, regular = _fonts()
+    img, d = _new(850)
+    y = _header(d, [
+        "Capital Care Clinic — Outpatient Bill",
+        "14 Connaught Place, New Delhi 110001  |  GSTIN: 07CAPIT1234D1Z4",
+    ], bold)
+    y = _text(d, [
+        "",
+        "Bill No : CCC/2024/5562          Date : 20-Oct-2024",
+        "Patient : Amit Verma             Member ID : EMP003",
+        "Policy  : PLUM_GHI_2024",
+        "",
+        "Services Rendered:",
+    ], regular, y)
+    y = _line_items(d, [
+        ("Specialist Procedure Charges", 4000),
+        ("Medicines & Consumables", 3500),
+    ], regular, y)
+    y = _text(d, [
+        "",
+        "                               Total Billed : Rs. 7,500",
+        "",
+        "Authorised Signatory: ___________________________",
+    ], regular, y)
+    img.save(out / "bill_overlimit.png")
+
+
+def prescription_mri(out: Path) -> None:
+    """Prescription ordering an MRI for Suresh Patil (EMP007). The MRI > Rs. 10,000
+    requires pre-authorization, which the Submit form cannot supply."""
+    bold, regular = _fonts()
+    img, d = _new()
+    y = _header(d, [
+        "Dr. Venkat Rao, MBBS, MS, MCh (Neurosurgery)",
+        "Reg. No: AP/67890/2017",
+        "NeuroSpine Institute, 5 Banjara Hills, Hyderabad — 500034",
+        "Ph: 040-23556677",
+    ], bold)
+    y = _text(d, [
+        "",
+        "Patient : Suresh Patil                  Date : 02-Nov-2024",
+        "Age     : 48 yrs    Gender : M",
+        "Member ID: EMP007",
+        "",
+        "Diagnosis : Suspected Lumbar Disc Herniation (L4-L5)",
+        "            Chronic low back pain with right leg radiculopathy",
+        "",
+        "Investigations advised:",
+        "  - MRI Lumbar Spine (plain)",
+        "",
+        "Advice : Avoid heavy lifting. Review with MRI films.",
+        "         Pre-authorization to be obtained for MRI per insurer norms.",
+        "",
+        "Signature: ___________________________",
+    ], regular, y)
+    img.save(out / "prescription_mri.png")
+
+
+def lab_report_mri(out: Path) -> None:
+    """MRI Lumbar Spine report for Suresh Patil — the LAB_REPORT required for a
+    DIAGNOSTIC claim."""
+    bold, regular = _fonts()
+    img, d = _new(900)
+    y = _header(d, [
+        "NeuroScan Imaging Centre",
+        "NABL Accredited  |  5 Banjara Hills, Hyderabad — 500034",
+        "Ph: 040-23559900",
+    ], bold)
+    y = _text(d, [
+        "",
+        "Patient   : Suresh Patil                    Scan Date  : 02-Nov-2024",
+        "Age / Sex : 48 yrs / M                      Report Date: 02-Nov-2024",
+        "Member ID : EMP007                          Ref. Doctor: Dr. Venkat Rao",
+        "",
+        "STUDY : MRI LUMBAR SPINE (PLAIN)",
+        "",
+        "FINDINGS:",
+        "  - L4-L5: Posterocentral disc herniation indenting the thecal sac,",
+        "    causing mild central canal stenosis.",
+        "  - L5-S1: Diffuse disc bulge, no significant compression.",
+        "  - Vertebral body heights and marrow signal normal.",
+        "  - Conus medullaris terminates at L1, normal.",
+        "",
+        "IMPRESSION:",
+        "  L4-L5 disc herniation with mild canal stenosis. Clinical correlation",
+        "  and neurosurgical opinion advised.",
+        "",
+        "Reported by: Dr. A. Krishnan, MD (Radiology)  |  Reg. No: TS/55321/2013",
+        "Signature: ___________________________   [Centre Stamp]",
+    ], regular, y)
+    img.save(out / "lab_report_mri.png")
+
+
+def bill_mri(out: Path) -> None:
+    """MRI bill (Rs. 15,000) for Suresh Patil — single MRI line item above the
+    Rs. 10,000 pre-auth threshold."""
+    bold, regular = _fonts()
+    img, d = _new(800)
+    y = _header(d, [
+        "NeuroScan Imaging Centre — Tax Invoice",
+        "5 Banjara Hills, Hyderabad 500034  |  GSTIN: 36NEURO1234H1Z6",
+    ], bold)
+    y = _text(d, [
+        "",
+        "Bill No : NSI/2024/2204          Date : 02-Nov-2024",
+        "Patient : Suresh Patil           Member ID : EMP007",
+        "Policy  : PLUM_GHI_2024",
+        "",
+        "Services Rendered:",
+    ], regular, y)
+    y = _line_items(d, [
+        ("MRI Lumbar Spine (Plain)", 15000),
+    ], regular, y)
+    y = _text(d, [
+        "",
+        "                               Total Billed : Rs. 15,000",
+        "",
+        "Authorised Signatory: ___________________________",
+    ], regular, y)
+    img.save(out / "bill_mri.png")
+
+
+def prescription_panel_highvalue(out: Path) -> None:
+    """Prescription ordering an extensive diagnostic workup for Rajesh Kumar.
+    Pairs with a Rs. 30,000 bill that crosses the auto-manual-review threshold."""
+    bold, regular = _fonts()
+    img, d = _new()
+    y = _header(d, [
+        "Dr. Suresh Reddy, MBBS, MD (Internal Medicine)",
+        "Reg. No: KA/67321/2012",
+        "Manipal Hospitals, Old Airport Road, Bengaluru — 560017",
+        "Ph: 080-25024444",
+    ], bold)
+    y = _text(d, [
+        "",
+        "Patient : Rajesh Kumar                  Date : 05-Nov-2024",
+        "Age     : 39 yrs    Gender : M",
+        "Member ID: EMP001",
+        "",
+        "Diagnosis : Pyrexia of Unknown Origin — extensive workup advised",
+        "",
+        "Investigations advised:",
+        "  - Comprehensive Fever Panel (cultures, serology, autoimmune markers)",
+        "  - Whole-body imaging and specialised pathology",
+        "",
+        "Advice : Admit for evaluation. Insurer pre-intimation recommended for",
+        "         high-value diagnostic package.",
+        "",
+        "Signature: ___________________________",
+    ], regular, y)
+    img.save(out / "prescription_panel_highvalue.png")
+
+
+def bill_diagnostic_highvalue(out: Path) -> None:
+    """High-value diagnostic bill (Rs. 30,000) for Rajesh Kumar — above the
+    Rs. 25,000 auto-manual-review threshold (no MRI/CT/PET line, so no pre-auth
+    block). Routes to MANUAL_REVIEW."""
+    bold, regular = _fonts()
+    img, d = _new(900)
+    y = _header(d, [
+        "Manipal Hospitals — Diagnostic Package Invoice",
+        "Old Airport Road, Bengaluru 560017  |  GSTIN: 29MANIP0001B1Z3",
+    ], bold)
+    y = _text(d, [
+        "",
+        "Bill No : MH/DG/2024/4407         Date : 05-Nov-2024",
+        "Patient : Rajesh Kumar            Member ID : EMP001",
+        "Policy  : PLUM_GHI_2024",
+        "",
+        "Services Rendered:",
+    ], regular, y)
+    y = _line_items(d, [
+        ("Comprehensive Fever & Infection Panel", 12000),
+        ("Autoimmune & Serology Workup", 9000),
+        ("Specialised Pathology & Cultures", 9000),
+    ], regular, y)
+    y = _text(d, [
+        "",
+        "                               Total Billed : Rs. 30,000",
+        "",
+        "Authorised Signatory: ___________________________",
+    ], regular, y)
+    img.save(out / "bill_diagnostic_highvalue.png")
+
+
+def prescription_pharmacy(out: Path) -> None:
+    """Prescription for Sneha Reddy (EMP004) — pairs with a clean pharmacy bill."""
+    bold, regular = _fonts()
+    img, d = _new()
+    y = _header(d, [
+        "Dr. Arun Sharma, MBBS, MD (Internal Medicine)",
+        "Reg. No: KA/45678/2015",
+        "City Medical Centre, 12 MG Road, Bengaluru — 560001",
+        "Ph: 080-22334455",
+    ], bold)
+    y = _text(d, [
+        "",
+        "Patient : Sneha Reddy                   Date : 25-Oct-2024",
+        "Age     : 32 yrs    Gender : F",
+        "Member ID: EMP004",
+        "",
+        "Diagnosis : Acute Bronchitis",
+        "",
+        "Rx:",
+        "  1. Tab Azithromycin 500 mg   —  1-0-0  x 5 days",
+        "  2. Syrup Levosalbutamol      —  10 ml TDS  x 5 days",
+        "  3. Tab Paracetamol 650 mg    —  1-1-1 SOS",
+        "  4. Multivitamin              —  0-0-1  x 30 days",
+        "",
+        "Advice : Steam inhalation, plenty of fluids, avoid cold exposure.",
+        "",
+        "Signature: ___________________________",
+    ], regular, y)
+    img.save(out / "prescription_pharmacy.png")
+
+
+def pharmacy_bill_clean(out: Path) -> None:
+    """Clean, readable pharmacy bill (Rs. 1,200) for Sneha Reddy. Pharmacy copay
+    is 0%, so the full eligible amount is approved."""
+    bold, regular = _fonts()
+    img, d = _new(820)
+    y = _header(d, [
+        "MedPlus Pharmacy",
+        "15 Residency Road, Bengaluru 560025  |  GSTIN: 29MEDPL1234R1Z7",
+    ], bold)
+    y = _text(d, [
+        "",
+        "Bill No : MP/2024/8842           Date : 25-Oct-2024",
+        "Patient : Sneha Reddy            Member ID : EMP004",
+        "",
+        "Items:",
+    ], regular, y)
+    y = _line_items(d, [
+        ("Azithromycin 500mg x 5 tabs", 350),
+        ("Levosalbutamol Syrup 100ml", 450),
+        ("Paracetamol 650mg x 15 tabs", 120),
+        ("Multivitamin x 30 caps", 280),
+    ], regular, y)
+    y = _text(d, [
+        "",
+        "                          Total : Rs. 1,200",
+        "",
+        "Pharmacist: _______________   [Pharmacy Stamp]",
+    ], regular, y)
+    img.save(out / "pharmacy_bill_clean.png")
+
+
+def lab_bill_cbc(out: Path) -> None:
+    """Diagnostic bill (Rs. 1,000) for Rajesh Kumar — pairs with lab_report_cbc
+    for a clean DIAGNOSTIC claim (0% copay)."""
+    bold, regular = _fonts()
+    img, d = _new(820)
+    y = _header(d, [
+        "Precision Diagnostics Pvt. Ltd. — Tax Invoice",
+        "45 Jayanagar 4th Block, Bengaluru 560041  |  GSTIN: 29PRECI1234B1Z1",
+    ], bold)
+    y = _text(d, [
+        "",
+        "Bill No : PD/2024/18723          Date : 01-Nov-2024",
+        "Patient : Rajesh Kumar           Member ID : EMP001",
+        "Policy  : PLUM_GHI_2024",
+        "",
+        "Tests Performed:",
+    ], regular, y)
+    y = _line_items(d, [
+        ("CBC (Complete Blood Count)", 600),
+        ("Dengue NS1 Antigen", 400),
+    ], regular, y)
+    y = _text(d, [
+        "",
+        "                               Total Billed : Rs. 1,000",
+        "",
+        "Authorised Signatory: ___________________________",
+    ], regular, y)
+    img.save(out / "lab_bill_cbc.png")
+
+
+def vision_bill(out: Path) -> None:
+    """Optical bill (Rs. 4,500) for Rajesh Kumar — covered VISION items (eye exam
+    + prescription glasses). Pairs with vision_prescription."""
+    bold, regular = _fonts()
+    img, d = _new(820)
+    y = _header(d, [
+        "ClearVision Eye Clinic & Opticals — Bill",
+        "8 Residency Road, Bengaluru 560025  |  GSTIN: 29CLEAR1234V1Z3",
+    ], bold)
+    y = _text(d, [
+        "",
+        "Bill No : CV/2024/1190           Date : 15-Oct-2024",
+        "Patient : Rajesh Kumar           Member ID : EMP001",
+        "Policy  : PLUM_GHI_2024",
+        "",
+        "Services / Items:",
+    ], regular, y)
+    y = _line_items(d, [
+        ("Eye Examination", 500),
+        ("Prescription Glasses (frame + progressive lens)", 4000),
+    ], regular, y)
+    y = _text(d, [
+        "",
+        "                               Total Billed : Rs. 4,500",
+        "",
+        "Authorised Signatory: ___________________________",
+    ], regular, y)
+    img.save(out / "vision_bill.png")
+
+
+def prescription_lasik(out: Path) -> None:
+    """Eye prescription advising LASIK for Kavita Nair (EMP006). LASIK is a
+    policy vision exclusion, so the paired bill is fully non-payable."""
+    bold, regular = _fonts()
+    img, d = _new()
+    y = _header(d, [
+        "Dr. Kavitha Menon, MBBS, MS (Ophthalmology)",
+        "Reg. No: KA/72345/2014",
+        "ClearVision Eye Clinic, 8 Residency Road, Bengaluru — 560025",
+        "Ph: 080-22567890",
+    ], bold)
+    y = _text(d, [
+        "",
+        "Patient : Kavita Nair                   Date : 20-Oct-2024",
+        "Age     : 41 yrs    Gender : F          Member ID : EMP006",
+        "",
+        "Diagnosis : Myopia (both eyes), keen to discontinue spectacles",
+        "",
+        "Plan / Treatment:",
+        "  - LASIK Surgery (refractive correction, both eyes)",
+        "",
+        "Advice : Pre-LASIK evaluation done, cornea suitable.",
+        "         Counselled that refractive surgery may not be insured.",
+        "",
+        "Signature: ___________________________   [Clinic Stamp]",
+    ], regular, y)
+    img.save(out / "prescription_lasik.png")
+
+
+def vision_bill_lasik(out: Path) -> None:
+    """LASIK bill (Rs. 5,000) for Kavita Nair — the only line item is the excluded
+    LASIK procedure, so the claim is rejected with a ₹0 payable."""
+    bold, regular = _fonts()
+    img, d = _new(800)
+    y = _header(d, [
+        "ClearVision Eye Clinic & Opticals — Bill",
+        "8 Residency Road, Bengaluru 560025  |  GSTIN: 29CLEAR1234V1Z3",
+    ], bold)
+    y = _text(d, [
+        "",
+        "Bill No : CV/2024/1233           Date : 20-Oct-2024",
+        "Patient : Kavita Nair            Member ID : EMP006",
+        "Policy  : PLUM_GHI_2024",
+        "",
+        "Services Rendered:",
+    ], regular, y)
+    y = _line_items(d, [
+        ("LASIK Surgery (both eyes)", 5000),
+    ], regular, y)
+    y = _text(d, [
+        "",
+        "                               Total Billed : Rs. 5,000",
+        "",
+        "Authorised Signatory: ___________________________",
+    ], regular, y)
+    img.save(out / "vision_bill_lasik.png")
+
+
+def bill_wrong_patient(out: Path) -> None:
+    """Hospital bill for 'Arjun Mehta' — used with prescription_clean (Rajesh
+    Kumar) to demonstrate the cross-document patient-mismatch stop."""
+    bold, regular = _fonts()
+    img, d = _new(850)
+    y = _header(d, [
+        "Manipal Hospital — Outpatient Bill",
+        "Old Airport Road, Bengaluru 560017  |  GSTIN: 29MANIP0001B1Z3",
+    ], bold)
+    y = _text(d, [
+        "",
+        "Bill No : MH/OP/2024/7781        Date : 01-Nov-2024",
+        "Patient : Arjun Mehta            Member ID : EMP002",
+        "Policy  : PLUM_GHI_2024",
+        "",
+        "Services Rendered:",
+    ], regular, y)
+    y = _line_items(d, [
+        ("Consultation Fee — Dr. Priya Nair", 800),
+        ("Physiotherapy Session", 700),
+    ], regular, y)
+    y = _text(d, [
+        "",
+        "                               Total Billed : Rs. 1,500",
+        "",
+        "Authorised Signatory: ___________________________",
+    ], regular, y)
+    img.save(out / "bill_wrong_patient.png")
+
+
+def prescription_network(out: Path) -> None:
+    """Consultation prescription for Deepak Shah (EMP010) at a network hospital —
+    pairs with bill_network for the 'discount before co-pay' demo."""
+    bold, regular = _fonts()
+    img, d = _new()
+    y = _header(d, [
+        "Dr. S. Iyer, MBBS, MD (Pulmonology)",
+        "Reg. No: TN/56789/2013",
+        "Apollo Hospitals, Bannerghatta Road, Bengaluru — 560076",
+        "Ph: 080-26304050",
+    ], bold)
+    y = _text(d, [
+        "",
+        "Patient : Deepak Shah                   Date : 03-Nov-2024",
+        "Age     : 44 yrs    Gender : M          Member ID : EMP010",
+        "",
+        "Diagnosis : Acute Bronchitis",
+        "",
+        "Rx:",
+        "  1. Tab Amoxicillin 500 mg    —  1-0-1  x 5 days",
+        "  2. Salbutamol Inhaler        —  2 puffs TDS",
+        "  3. Tab Montelukast 10 mg     —  0-0-1  x 10 days",
+        "",
+        "Advice : Steam inhalation, avoid dust. Review after 5 days.",
+        "",
+        "Signature: ___________________________",
+    ], regular, y)
+    img.save(out / "prescription_network.png")
+
+
+def bill_network(out: Path) -> None:
+    """Apollo (network) consultation bill (Rs. 4,500) for Deepak Shah, with the
+    consultation fee kept at/below the Rs. 2,000 sub-limit so the demo shows the
+    full 20% network discount then 10% co-pay: 4500 -> 3600 -> 3240."""
+    bold, regular = _fonts()
+    img, d = _new(880)
+    y = _header(d, [
+        "Apollo Hospitals — Outpatient Bill",
+        "Bannerghatta Road, Bengaluru 560076  |  GSTIN: 29APOLL0001A1Z5",
+    ], bold)
+    y = _text(d, [
+        "",
+        "Bill No : APO/2024/9118          Date : 03-Nov-2024",
+        "Patient : Deepak Shah            Member ID : EMP010",
+        "Policy  : PLUM_GHI_2024          Network Hospital",
+        "",
+        "Services Rendered:",
+    ], regular, y)
+    y = _line_items(d, [
+        ("Consultation Fee — Dr. S. Iyer", 1500),
+        ("Medicines & Nebulisation", 3000),
+    ], regular, y)
+    y = _text(d, [
+        "",
+        "                               Total Billed : Rs. 4,500",
+        "",
+        "Authorised Signatory: ___________________________",
+    ], regular, y)
+    img.save(out / "bill_network.png")
+
+
 def main(out: Path) -> None:
     out.mkdir(parents=True, exist_ok=True)
     prescription_clean(out)
@@ -550,12 +1171,33 @@ def main(out: Path) -> None:
     pharmacy_bill_blurry(out)
     prescription_wrong_patient(out)
     dental_bill_mixed(out)
-    # new documents
+    # extended documents
     lab_report_cbc(out)
     hospital_bill_highvalue(out)
     discharge_summary(out)
     vision_prescription(out)
     unrelated_receipt(out)
+    # DEMO_TEST_CASES.md scenario documents
+    prescription_network(out)
+    bill_network(out)
+    prescription_diabetes(out)
+    bill_diabetes(out)
+    prescription_obesity(out)
+    bill_obesity(out)
+    prescription_gastro(out)
+    bill_overlimit(out)
+    prescription_mri(out)
+    lab_report_mri(out)
+    bill_mri(out)
+    prescription_panel_highvalue(out)
+    bill_diagnostic_highvalue(out)
+    prescription_pharmacy(out)
+    pharmacy_bill_clean(out)
+    lab_bill_cbc(out)
+    vision_bill(out)
+    prescription_lasik(out)
+    vision_bill_lasik(out)
+    bill_wrong_patient(out)
     files = list(out.glob("*.png"))
     print(f"wrote {len(files)} docs to {out}/")
 

@@ -1,9 +1,11 @@
 from __future__ import annotations
 import asyncio, json, logging
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 from app.api.schemas import HealthResponse
+from app.core.logging_config import configure_logging
 
 logger = logging.getLogger(__name__)
 from app.config import settings
@@ -18,11 +20,27 @@ def make_llm():
     if settings.llm_provider == "gemini":
         from app.llm.gemini_client import GeminiClient
         return GeminiClient(api_key=settings.gemini_api_key)
+    if settings.llm_provider == "groq":
+        from app.llm.groq_client import GroqClient
+        return GroqClient(api_key=settings.groq_api_key, model=settings.groq_model)
     return MockClient()
 
 
 def create_app(db_path: str | None = None) -> FastAPI:
+    configure_logging()
     app = FastAPI(title="Plum Claims Processing", version=settings.pipeline_version)
+
+    # Allow the browser SPA to call the API when it's served from another origin
+    # (e.g. the Render static site). The docker image proxies same-origin, so
+    # this is a no-op there.
+    origins = [o.strip() for o in settings.cors_allow_origins.split(",") if o.strip()]
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=origins or ["*"],
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
     loader = PolicyLoader.load(settings.policy_path)
     repo = Repository(db_path or settings.db_path)
     orch = Orchestrator(loader=loader, llm=make_llm(), repository=repo)

@@ -191,8 +191,22 @@ class AdjudicatorAgent(Agent):
                 description=desc, amount=amount, eligible_amount=eligible,
                 verdict=verdict, reason=reason,
                 rule_ref=f"opd_categories.{cat}.sub_limit" if verdict == "CAPPED" else None))
-        checks.append(PolicyCheck(check="LINE_ITEMS", result=CheckResult.PASS,
-            detail={"verdicts": [v.model_dump() for v in ctx.line_verdicts]}))
+        # Surface line-item rejections at the check level so the per-step trace is
+        # not all-green on a claim that is partially or fully non-payable. A reviewer
+        # scanning check statuses must see WHY the payable amount was reduced.
+        any_rejected = any(v.verdict == "REJECTED" for v in ctx.line_verdicts)
+        any_payable = any(v.verdict in ("APPROVED", "CAPPED") for v in ctx.line_verdicts)
+        if not ctx.line_verdicts:
+            line_result = CheckResult.FAIL          # nothing billable extracted
+        elif any_rejected and not any_payable:
+            line_result = CheckResult.FAIL          # every billed item rejected → ₹0
+        elif any_rejected:
+            line_result = CheckResult.WARN          # some items rejected → PARTIAL
+        else:
+            line_result = CheckResult.PASS
+        checks.append(PolicyCheck(check="LINE_ITEMS", result=line_result,
+            detail={"verdicts": [v.model_dump() for v in ctx.line_verdicts],
+                    "no_billable_items": not ctx.line_verdicts}))
 
     # ── financial calculation ──────────────────────────────────────────────────
 

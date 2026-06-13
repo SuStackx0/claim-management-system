@@ -3,6 +3,14 @@
 .gitignore
 .github
 
+# Node / frontend build artifacts — installed & built fresh inside the image.
+# Critical: never copy host node_modules into the build, or macOS-native
+# esbuild/rollup binaries clobber the container's Linux ones and the build fails.
+**/node_modules
+**/dist
+frontend/.env
+frontend/.env.local
+
 # Python envs & caches
 .venv
 venv

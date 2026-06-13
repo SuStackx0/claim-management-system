@@ -1,4 +1,5 @@
 from __future__ import annotations
+import re
 
 # Keys mirror policy_terms.json waiting_periods.specific_conditions
 CONDITION_KEYWORDS: dict[str, list[str]] = {
@@ -27,9 +28,12 @@ EXCLUSION_KEYWORDS: dict[str, list[str]] = {
 }
 
 def match_condition(*texts: str | None) -> str | None:
+    # Word-boundary match so a clinical term that merely CONTAINS a condition
+    # keyword does not falsely trigger a waiting period — e.g. "Lumbar Disc
+    # Herniation" must NOT match the "hernia" waiting-period keyword (TC007).
     blob = " ".join(t.lower() for t in texts if t)
     for cond, kws in CONDITION_KEYWORDS.items():
-        if any(kw in blob for kw in kws):
+        if any(re.search(rf"\b{re.escape(kw)}\b", blob) for kw in kws):
             return cond
     return None
 

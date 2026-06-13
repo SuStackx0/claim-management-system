@@ -4,7 +4,12 @@ from app.api.main import create_app
 
 @pytest.fixture
 async def client(tmp_path, monkeypatch):
+    # settings is a module-level singleton read at import time, so setenv alone is
+    # too late — patch the live attribute so a developer's local .env (e.g.
+    # LLM_PROVIDER=groq) can't leak the real client into these tests.
+    from app.config import settings
     monkeypatch.setenv("LLM_PROVIDER", "mock")
+    monkeypatch.setattr(settings, "llm_provider", "mock")
     app = create_app(db_path=str(tmp_path / "api.db"))
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://t") as c:
         yield c

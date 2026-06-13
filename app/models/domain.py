@@ -47,6 +47,10 @@ class ClaimSubmission(BaseModel):
     policy_id: str
     claim_category: str
     treatment_date: date
+    # when the claim was actually submitted; drives the SUBMISSION_DEADLINE check
+    # (days from treatment). Optional: historical/eval fixtures omit it, in which
+    # case the deadline check is reported SKIPPED rather than guessed.
+    submission_date: date | None = None
     claimed_amount: int
     hospital_name: str | None = None
     ytd_claims_amount: int = 0

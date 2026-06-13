@@ -38,6 +38,15 @@ class Orchestrator:
         ctx = ClaimContext(submission=submission, loader=self.loader,
                            trace=ClaimTrace(claim_id=claim_id,
                                             pipeline_version=settings.pipeline_version))
+        # Log submission
+        logger.info(
+            "[%s] INTAKE member=%s category=%s claimed_amount=%d",
+            claim_id,
+            submission.member_id,
+            submission.claim_category,
+            submission.claimed_amount,
+        )
+        t_start = time.monotonic()
         for agent in self.agents:
             t0 = time.monotonic()
             try:
@@ -61,6 +70,8 @@ class Orchestrator:
                     return await self._stopped(ctx, err)
                 self._degrade(ctx, agent, str(e))
                 continue
+            # Log step execution with duration
+            logger.info("[%s] %s (%dms)", claim_id, agent.step, result.duration_ms)
             ctx.trace.append(result)
         ctx.trace.completed_at = datetime.now(timezone.utc)
         outcome = ClaimOutcome(claim_id=claim_id, status="COMPLETED",
@@ -68,6 +79,16 @@ class Orchestrator:
                                member_message=ctx.trace.decision.member_message,
                                trace=ctx.trace.model_dump(mode="json"))
         await self._persist(ctx.submission, outcome)
+        # Log completion
+        total_ms = int((time.monotonic() - t_start) * 1000)
+        logger.info(
+            "[%s] COMPLETED status=%s approved_amount=%d confidence=%.2f total=%dms",
+            claim_id,
+            ctx.trace.decision.status if ctx.trace.decision else "N/A",
+            ctx.trace.decision.approved_amount if ctx.trace.decision else 0,
+            ctx.trace.confidence(),
+            total_ms,
+        )
         return outcome
 
     async def _persist(self, submission: ClaimSubmission, outcome: ClaimOutcome) -> None:

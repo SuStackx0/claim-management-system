@@ -5,11 +5,17 @@ services:
       dockerfile: Dockerfile.api
     container_name: plum-claims-api
     environment:
+      # Defaults to the mock LLM so `docker compose up` works end-to-end with no
+      # API keys. For real LLM calls, set LLM_PROVIDER=groq (or gemini) and the
+      # matching key in a .env file next to this compose file.
       LLM_PROVIDER: ${LLM_PROVIDER:-mock}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GROQ_MODEL: ${GROQ_MODEL:-meta-llama/llama-4-scout-17b-16e-instruct}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       DB_PATH: /tmp/claims.db
       POLICY_PATH: data/policy_terms.json
       TEST_CASES_PATH: data/test_cases.json
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
     ports:
       - "8000:8000"
     healthcheck:
@@ -20,14 +26,14 @@ services:
       start_period: 10s
 
   ui:
+    # React SPA served by nginx, which reverse-proxies /claims, /members, /eval
+    # and /health to the api service — so the browser talks to one origin only.
     build:
       context: .
       dockerfile: Dockerfile.ui
     container_name: plum-claims-ui
-    environment:
-      API_BASE_URL: http://api:8000
     ports:
-      - "8501:8501"
+      - "8501:80"
     depends_on:
       api:
         condition: service_healthy

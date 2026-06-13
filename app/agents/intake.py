@@ -1,5 +1,6 @@
 from __future__ import annotations
 import time
+from datetime import timedelta
 from app.agents.base import Agent
 from app.core.context import ClaimContext
 from app.core.errors import AgentError, AgentFailure, ErrorCode
@@ -75,9 +76,38 @@ class IntakeAgent(Agent):
                                   rule_ref="submission_rules.minimum_claim_amount",
                                   detail={"claimed": sub.claimed_amount, "minimum": min_amt}))
 
-        checks.append(PolicyCheck(check="SUBMISSION_DEADLINE", result=CheckResult.SKIPPED,
-                                  rule_ref="submission_rules.deadline_days_from_treatment",
-                                  detail={"reason": "no submission timestamp in test data"}))
+        # SUBMISSION_DEADLINE: claims must be filed within N days of treatment.
+        # This needs a submission timestamp distinct from treatment_date. When the
+        # submission provides one we enforce it; otherwise we cannot (and must not
+        # guess against the processing clock, which would wrongly reject historical
+        # fixtures), so we report SKIPPED with an explicit reason.
+        deadline_days = loader.policy.submission_rules.deadline_days_from_treatment
+        if sub.submission_date is not None:
+            days_late = (sub.submission_date - sub.treatment_date).days
+            if days_late > deadline_days:
+                eligible_until = sub.treatment_date + timedelta(days=deadline_days)
+                raise AgentFailure(AgentError(
+                    code=ErrorCode.DEADLINE_EXCEEDED,
+                    message=f"submitted {days_late}d after treatment > {deadline_days}d limit",
+                    member_message=(f"This claim was submitted on {sub.submission_date}, which is "
+                                    f"more than {deadline_days} days after the treatment date "
+                                    f"{sub.treatment_date}. Claims must be filed by "
+                                    f"{eligible_until}. This claim is past the submission window."),
+                    detail={"treatment_date": str(sub.treatment_date),
+                            "submission_date": str(sub.submission_date),
+                            "days_late": days_late, "deadline_days": deadline_days},
+                ))
+            checks.append(PolicyCheck(check="SUBMISSION_DEADLINE", result=CheckResult.PASS,
+                                      rule_ref="submission_rules.deadline_days_from_treatment",
+                                      detail={"treatment_date": str(sub.treatment_date),
+                                              "submission_date": str(sub.submission_date),
+                                              "days_within_limit": deadline_days - days_late}))
+        else:
+            checks.append(PolicyCheck(check="SUBMISSION_DEADLINE", result=CheckResult.SKIPPED,
+                rule_ref="submission_rules.deadline_days_from_treatment",
+                detail={"reason": "no submission_date provided; cannot measure days-from-treatment "
+                                  "without guessing against the processing clock",
+                        "treatment_date": str(sub.treatment_date), "deadline_days": deadline_days}))
 
         return StepResult(step=self.step, agent=self.name, status=StepStatus.PASS,
                           checks=checks, duration_ms=int((time.monotonic() - t0) * 1000))

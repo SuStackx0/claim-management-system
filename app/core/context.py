@@ -53,3 +53,7 @@ class ClaimContext(BaseModel):
     fraud_signals: list[FraudSignal] = Field(default_factory=list)
     financial: dict = Field(default_factory=dict)  # breakdown: base, discount, copay, payable
     blocking_reasons: list[str] = Field(default_factory=list)  # e.g. WAITING_PERIOD
+    # decision-relevant checks that could NOT be verified (e.g. PATIENT_MATCH when a
+    # patient-bearing doc failed extraction). A non-empty list caps the outcome at
+    # MANUAL_REVIEW — an unverifiable check must never prop up a confident approval.
+    unverified_checks: list[str] = Field(default_factory=list)

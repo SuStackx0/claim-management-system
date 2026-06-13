@@ -20,6 +20,28 @@ async def test_intake_records_skipped_deadline_check(make_ctx, case_input):
     assert "reason" in deadline.detail
 
 
+async def test_intake_deadline_passes_when_within_window(make_ctx, case_input):
+    # submission_date provided, within the 30-day deadline → PASS (treatment_date used)
+    inp = dict(case_input("TC004"))
+    inp["submission_date"] = "2024-11-20"  # treatment 2024-11-01 → 19 days, within 30
+    result = await IntakeAgent().run(make_ctx(inp))
+    deadline = next(c for c in result.checks if c.check == "SUBMISSION_DEADLINE")
+    assert deadline.result == CheckResult.PASS
+    assert deadline.detail["submission_date"] == "2024-11-20"
+
+
+async def test_intake_deadline_exceeded_stops_with_dates(make_ctx, case_input):
+    # submission_date past the 30-day window → fatal DEADLINE_EXCEEDED, message names dates
+    inp = dict(case_input("TC004"))
+    inp["submission_date"] = "2024-12-15"  # treatment 2024-11-01 → 44 days > 30
+    with pytest.raises(AgentFailure) as ei:
+        await IntakeAgent().run(make_ctx(inp))
+    err = ei.value.error
+    assert err.code == ErrorCode.DEADLINE_EXCEEDED
+    assert "2024-11-01" in err.member_message  # treatment date
+    assert "2024-12-01" in err.member_message  # eligible-until = treatment + 30d
+
+
 async def test_intake_unknown_member(make_ctx, case_input):
     inp = dict(case_input("TC004")); inp["member_id"] = "EMP999"
     with pytest.raises(AgentFailure) as ei:
