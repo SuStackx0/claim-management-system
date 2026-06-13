@@ -108,4 +108,4 @@ Submit your repository link, deployed URL, and eval report. Be prepared for a 60
 
 - `policy_terms.json` — policy configuration, coverage rules, member roster
 - `test_cases.json` — 12 test cases with expected outcomes
-- `sample_documents_guide.md` — Indian medical document formats and extraction guidance
+- `docs/sample_documents_guide.md` — Indian medical document formats and extraction guidance

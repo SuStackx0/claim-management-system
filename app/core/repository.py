@@ -1,6 +1,8 @@
 from __future__ import annotations
 import json, sqlite3
+from contextlib import contextmanager
 from datetime import datetime, timezone
+from typing import Generator
 from app.models.domain import ClaimOutcome, ClaimSubmission
 
 _SCHEMA = """
@@ -28,10 +30,18 @@ class Repository:
         with self._conn() as c:
             c.executescript(_SCHEMA)
 
-    def _conn(self):
+    @contextmanager
+    def _conn(self) -> Generator[sqlite3.Connection, None, None]:
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
-        return conn
+        try:
+            yield conn
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
 
     def save(self, sub: ClaimSubmission, outcome: ClaimOutcome) -> None:
         d = outcome.decision

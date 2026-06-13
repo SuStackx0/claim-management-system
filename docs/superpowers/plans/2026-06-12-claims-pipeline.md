@@ -1,7 +1,5 @@
 # Claims Processing Pipeline Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
-
 **Goal:** Build the Plum claims adjudication system — FastAPI pipeline of 7 agents with trace-first observability, Gemini/Mock LLM layer, eval runner for the 12 test cases, and a Streamlit UI.
 
 **Architecture:** Deterministic orchestrator runs 7 agents in fixed order with early exits; LLM only for doc classification/extraction/fuzzy names; all policy/money logic is pure code reading `policy_terms.json`. Decision is computed from the accumulated trace. Spec: `docs/superpowers/specs/2026-06-12-claims-pipeline-design.md`; diagrams: `...-diagrams.md`.
@@ -87,6 +85,7 @@ README.md
 ```
 
 **Documented assumptions (carry into architecture doc):**
+
 1. Category `sub_limit` caps the matching service line item (e.g. "Consultation Fee" ≤ ₹2,000), not the whole bill — otherwise TC010 (₹4,500 consultation claim, expected APPROVED) contradicts TC008. Over-limit lines are capped, producing PARTIAL.
 2. Pre-authorization arrives as `pre_authorization_id` on the submission; absent ⇒ not obtained.
 3. Condition/exclusion matching uses deterministic keyword tables keyed by the policy JSON's own keys (e.g. `diabetes`, `Obesity and weight loss programs`). Keywords are domain vocabulary, not policy values; the *rules* (days, lists, limits) always come from the JSON.
@@ -98,6 +97,7 @@ README.md
 ### Task 1: Scaffolding, config, data, test harness
 
 **Files:**
+
 - Create: `requirements.txt`, `app/__init__.py`, `app/config.py`, `pytest.ini`, `tests/conftest.py` (minimal), `.gitignore`
 - Move: `policy_terms.json`, `test_cases.json` → `data/` (use `git mv`)
 
@@ -175,7 +175,6 @@ def test_data_files_load(policy_dict, test_cases):
 ```
 
 - [ ] **Step 5: Run** `pytest -q` → Expected: `1 passed`.
-
 - [ ] **Step 6: STOP — present to Sumanth for approval; he commits (`chore: scaffold project, move policy data, test harness`).**
 
 ---
@@ -183,6 +182,7 @@ def test_data_files_load(policy_dict, test_cases):
 ### Task 2: Domain models
 
 **Files:**
+
 - Create: `app/models/__init__.py`, `app/models/domain.py`, `app/models/extraction.py`
 - Test: `tests/test_models.py` (extend)
 
@@ -214,7 +214,6 @@ def test_quality_hint(test_cases):
 ```
 
 - [ ] **Step 2: Run** `pytest tests/test_models.py -q` → Expected: FAIL (`ModuleNotFoundError: app.models`).
-
 - [ ] **Step 3: Implement `app/models/domain.py`**
 
 ```python
@@ -356,7 +355,6 @@ SCHEMA_BY_DOCTYPE = {
 `app/models/__init__.py`: empty file.
 
 - [ ] **Step 5: Run** `pytest tests/test_models.py -q` → Expected: all PASS.
-
 - [ ] **Step 6: STOP — present to Sumanth; he commits (`feat: domain and extraction models`).**
 
 ---
@@ -364,6 +362,7 @@ SCHEMA_BY_DOCTYPE = {
 ### Task 3: Policy models + loader
 
 **Files:**
+
 - Create: `app/models/policy.py`, `app/core/__init__.py`, `app/core/policy_loader.py`
 - Test: `tests/test_policy_loader.py`
 
@@ -408,7 +407,6 @@ def test_dependents_of(loader):
 ```
 
 - [ ] **Step 2: Run** `pytest tests/test_policy_loader.py -q` → Expected: FAIL (module missing).
-
 - [ ] **Step 3: Implement `app/models/policy.py`**
 
 ```python
@@ -533,7 +531,6 @@ class PolicyLoader:
 ```
 
 - [ ] **Step 5: Run** `pytest tests/test_policy_loader.py -q` → Expected: all PASS.
-
 - [ ] **Step 6: STOP — present to Sumanth; he commits (`feat: policy models and loader with rule_ref lookup`).**
 
 ---
@@ -541,6 +538,7 @@ class PolicyLoader:
 ### Task 4: Errors, trace, confidence ledger, context
 
 **Files:**
+
 - Create: `app/core/errors.py`, `app/core/trace.py`, `app/core/context.py`
 - Test: `tests/test_trace.py`
 
@@ -582,7 +580,6 @@ def test_agent_error_carries_member_message():
 ```
 
 - [ ] **Step 2: Run** `pytest tests/test_trace.py -q` → Expected: FAIL.
-
 - [ ] **Step 3: Implement `app/core/errors.py`**
 
 ```python
@@ -740,7 +737,6 @@ class ClaimContext(BaseModel):
 ```
 
 - [ ] **Step 6: Run** `pytest tests/test_trace.py -q` → Expected: all PASS. Also `pytest -q` (whole suite green).
-
 - [ ] **Step 7: STOP — present to Sumanth; he commits (`feat: trace, confidence ledger, errors, claim context`).**
 
 ---
@@ -748,6 +744,7 @@ class ClaimContext(BaseModel):
 ### Task 5: LLM layer — protocol, MockClient
 
 **Files:**
+
 - Create: `app/llm/__init__.py`, `app/llm/base.py`, `app/llm/mock_client.py`
 - Test: `tests/test_extraction.py` (LLM contract part)
 
@@ -790,7 +787,6 @@ async def test_mock_names_equivalent(mock_llm):
 ```
 
 - [ ] **Step 2: Run** `pytest tests/test_extraction.py -q` → Expected: FAIL.
-
 - [ ] **Step 3: Implement `app/llm/base.py`**
 
 ```python
@@ -911,7 +907,6 @@ class MockClient:
 ```
 
 - [ ] **Step 5: Run** `pytest tests/test_extraction.py -q` → Expected: all PASS.
-
 - [ ] **Step 6: STOP — present to Sumanth; he commits (`feat: LLM client protocol and mock client`).**
 
 ---
@@ -919,6 +914,7 @@ class MockClient:
 ### Task 6: Agent base + IntakeAgent
 
 **Files:**
+
 - Create: `app/agents/__init__.py`, `app/agents/base.py`, `app/agents/intake.py`
 - Modify: `tests/conftest.py` (add context builder)
 - Test: `tests/test_intake.py`
@@ -1006,7 +1002,6 @@ async def test_intake_invalid_category(make_ctx, case_input):
 ```
 
 - [ ] **Step 4: Run** `pytest tests/test_intake.py -q` → Expected: FAIL.
-
 - [ ] **Step 5: Implement `app/agents/intake.py`**
 
 ```python
@@ -1076,10 +1071,10 @@ Note: the 30-day submission deadline check needs "today"; for reproducible eval 
                                   rule_ref="submission_rules.deadline_days_from_treatment",
                                   detail={"reason": "no submission timestamp in test data"}))
 ```
+
 (insert before the `return`.)
 
 - [ ] **Step 6: Run** `pytest tests/test_intake.py -q` → Expected: all PASS.
-
 - [ ] **Step 7: STOP — present to Sumanth; he commits (`feat: agent base and intake agent`).**
 
 ---
@@ -1087,10 +1082,12 @@ Note: the 30-day submission deadline check needs "today"; for reproducible eval 
 ### Task 7: DocVerifierAgent (early-exit gate — TC001, TC002)
 
 **Files:**
+
 - Create: `app/agents/doc_verifier.py`
 - Test: `tests/test_doc_verifier.py`
 
 Behavior: for each document, use test-path hints (`actual_type`, `quality`) when present, else call `llm.classify_document`. Then diff detected types against `policy_view.required_docs`:
+
 - a required type is missing AND an extra/duplicate doc exists → `WRONG_DOCUMENT_TYPE`, message names **both** the uploaded type and the required type (TC001)
 - a required type is missing, nothing unexpected → `MISSING_REQUIRED_DOCUMENT`
 - a required doc is `UNREADABLE` → `DOCUMENT_UNREADABLE`, message asks to re-upload **that specific file** (TC002)
@@ -1137,7 +1134,6 @@ async def test_clean_docs_pass(agent, make_ctx, case_input):
 ```
 
 - [ ] **Step 2: Run** `pytest tests/test_doc_verifier.py -q` → Expected: FAIL.
-
 - [ ] **Step 3: Implement `app/agents/doc_verifier.py`**
 
 ```python
@@ -1232,7 +1228,6 @@ class DocVerifierAgent(Agent):
 ```
 
 - [ ] **Step 4: Run** `pytest tests/test_doc_verifier.py -q` → Expected: all PASS.
-
 - [ ] **Step 5: STOP — present to Sumanth; he commits (`feat: document verifier with early-exit messages`).**
 
 ---
@@ -1240,6 +1235,7 @@ class DocVerifierAgent(Agent):
 ### Task 8: ExtractionAgent (dual path, async fan-out)
 
 **Files:**
+
 - Create: `app/agents/extraction.py`
 - Test: `tests/test_extraction.py` (extend)
 
@@ -1279,7 +1275,6 @@ async def test_llm_failure_degrades_not_crashes(make_ctx, case_input):
 ```
 
 - [ ] **Step 2: Run** → Expected: FAIL.
-
 - [ ] **Step 3: Implement `app/agents/extraction.py`**
 
 ```python
@@ -1349,7 +1344,6 @@ class ExtractionAgent(Agent):
 ```
 
 - [ ] **Step 4: Run** `pytest tests/test_extraction.py -q` → Expected: all PASS.
-
 - [ ] **Step 5: STOP — present to Sumanth; he commits (`feat: extraction agent with dual path and degradation`).**
 
 ---
@@ -1357,6 +1351,7 @@ class ExtractionAgent(Agent):
 ### Task 9: ConsistencyAgent (TC003)
 
 **Files:**
+
 - Create: `app/agents/consistency.py`
 - Test: `tests/test_consistency.py`
 
@@ -1401,7 +1396,6 @@ async def test_amount_mismatch_warns_not_fatal(make_ctx, case_input):
 ```
 
 - [ ] **Step 2: Run** → Expected: FAIL.
-
 - [ ] **Step 3: Implement `app/agents/consistency.py`**
 
 ```python
@@ -1487,7 +1481,6 @@ class ConsistencyAgent(Agent):
 
 - [ ] **Step 4: Run** `pytest tests/test_consistency.py -q` → Expected: all PASS.
   Note: TC003's docs carry `patient_name_on_doc` but no `content`; the ExtractionAgent injects that hint as `patient_name` (Task 8 `_extract_one`), which is what this agent reads.
-
 - [ ] **Step 5: STOP — present to Sumanth; he commits (`feat: consistency agent with cross-document patient check`).**
 
 ---
@@ -1495,6 +1488,7 @@ class ConsistencyAgent(Agent):
 ### Task 10: Matching tables + AdjudicatorAgent policy checks (TC005, TC007, TC008, TC012)
 
 **Files:**
+
 - Create: `app/core/matching.py`, `app/agents/adjudicator.py` (checks; financial math in Task 11)
 - Test: `tests/test_adjudicator_checks.py`
 
@@ -1603,7 +1597,6 @@ async def test_tc004_all_checks_pass(make_ctx, case_input):
 ```
 
 - [ ] **Step 3: Run** → Expected: FAIL.
-
 - [ ] **Step 4: Implement `app/agents/adjudicator.py`** (checks portion; `_financials` lands in Task 11 — for now have it return without computing and `ctx.financial = {}`)
 
 ```python
@@ -1739,7 +1732,6 @@ class AdjudicatorAgent(Agent):
 **Gotcha for TC008:** per-claim check must run even though TC008's category sub-limit also looks violated; expected reason is only `PER_CLAIM_EXCEEDED`. The eval asserts *expected ⊆ produced*, so extra PASS checks are fine, but don't add extra blocking reasons for sub-limits here (sub-limit capping is per-line in Task 11, non-blocking).
 
 - [ ] **Step 5: Run** `pytest tests/test_adjudicator_checks.py -q` → Expected: all PASS.
-
 - [ ] **Step 6: STOP — present to Sumanth; he commits (`feat: adjudicator policy checks with rule refs`).**
 
 ---
@@ -1747,6 +1739,7 @@ class AdjudicatorAgent(Agent):
 ### Task 11: Adjudicator line items + financial math (TC004, TC006, TC010)
 
 **Files:**
+
 - Modify: `app/agents/adjudicator.py` (fill the two stubs)
 - Test: `tests/test_adjudicator_financial.py`
 
@@ -1808,7 +1801,6 @@ async def test_consultation_subline_capped(make_ctx, case_input):
 ```
 
 - [ ] **Step 2: Run** → Expected: FAIL.
-
 - [ ] **Step 3: Implement the two stubs in `app/agents/adjudicator.py`**
 
 ```python
@@ -1884,7 +1876,6 @@ async def test_consultation_subline_capped(make_ctx, case_input):
 ```
 
 - [ ] **Step 4: Run** `pytest tests/test_adjudicator_financial.py -q` then `pytest -q` → Expected: all PASS.
-
 - [ ] **Step 5: STOP — present to Sumanth; he commits (`feat: line-item adjudication and discount-before-copay math`).**
 
 ---
@@ -1892,6 +1883,7 @@ async def test_consultation_subline_capped(make_ctx, case_input):
 ### Task 12: FraudAgent (TC009) + Aggregator (decision derivation)
 
 **Files:**
+
 - Create: `app/agents/fraud.py`, `app/agents/aggregator.py`
 - Test: `tests/test_fraud.py`, `tests/test_aggregator.py`
 
@@ -1984,7 +1976,6 @@ async def test_low_confidence_adds_recommendation_not_status_change(make_ctx, ca
 ```
 
 - [ ] **Step 2: Run** → Expected: FAIL.
-
 - [ ] **Step 3: Implement `app/agents/fraud.py`**
 
 ```python
@@ -2146,7 +2137,6 @@ class Aggregator(Agent):
 ```
 
 - [ ] **Step 5: Run** `pytest tests/test_fraud.py tests/test_aggregator.py -q` → Expected: all PASS.
-
 - [ ] **Step 6: STOP — present to Sumanth; he commits (`feat: fraud signals and decision aggregator`).**
 
 ---
@@ -2154,6 +2144,7 @@ class Aggregator(Agent):
 ### Task 13: Orchestrator (early exits, degradation — TC011 mechanics)
 
 **Files:**
+
 - Create: `app/core/orchestrator.py`
 - Test: `tests/test_orchestrator.py`
 
@@ -2206,7 +2197,6 @@ async def test_internal_error_in_degradable_agent_never_propagates(orch, case_in
 ```
 
 - [ ] **Step 2: Run** → Expected: FAIL.
-
 - [ ] **Step 3: Implement `app/core/orchestrator.py`**
 
 ```python
@@ -2298,7 +2288,6 @@ class Orchestrator:
 **Note on the `except Exception` branch:** a raise from a *fatal* agent that isn't an `AgentFailure` is an internal bug → STOPPED with a generic message; from a degradable agent (FraudAgent) → degrade and continue. TC011's simulated `RuntimeError` exercises exactly this path.
 
 - [ ] **Step 4: Run** `pytest tests/test_orchestrator.py -q` then `pytest -q` → Expected: all PASS.
-
 - [ ] **Step 5: STOP — present to Sumanth; he commits (`feat: deterministic orchestrator with early exit and degradation`).**
 
 ---
@@ -2306,6 +2295,7 @@ class Orchestrator:
 ### Task 14: Repository (SQLite)
 
 **Files:**
+
 - Create: `app/core/repository.py`
 - Test: `tests/test_repository.py`
 
@@ -2345,7 +2335,6 @@ def test_get_missing_returns_none(repo):
 ```
 
 - [ ] **Step 2: Run** → Expected: FAIL.
-
 - [ ] **Step 3: Implement `app/core/repository.py`**
 
 ```python
@@ -2415,7 +2404,6 @@ class Repository:
 ```
 
 - [ ] **Step 4: Run** `pytest tests/test_repository.py -q` → Expected: all PASS.
-
 - [ ] **Step 5: STOP — present to Sumanth; he commits (`feat: sqlite repository`).**
 
 ---
@@ -2423,6 +2411,7 @@ class Repository:
 ### Task 15: FastAPI app
 
 **Files:**
+
 - Create: `app/api/__init__.py`, `app/api/schemas.py`, `app/api/main.py`
 - Test: `tests/test_api.py`
 
@@ -2474,7 +2463,6 @@ async def test_list_members(client):
 ```
 
 - [ ] **Step 2: Run** → Expected: FAIL.
-
 - [ ] **Step 3: Implement `app/api/schemas.py`**
 
 ```python
@@ -2562,7 +2550,6 @@ app = create_app()
 
 - [ ] **Step 5: Run** `pytest tests/test_api.py -q` → Expected: all PASS.
 - [ ] **Step 6: Manual smoke:** `.venv/bin/uvicorn app.api.main:app --port 8000` then `curl -s localhost:8000/health` → `{"status":"ok",...}`.
-
 - [ ] **Step 7: STOP — present to Sumanth; he commits (`feat: fastapi endpoints for claims, upload, members`).**
 
 ---
@@ -2570,6 +2557,7 @@ app = create_app()
 ### Task 16: Eval runner — all 12 cases (deliverable #4)
 
 **Files:**
+
 - Create: `app/eval/__init__.py`, `app/eval/runner.py`, `app/eval/__main__.py`
 - Modify: `app/api/main.py` (add `POST /eval/run`)
 - Test: `tests/test_eval_cases.py`
@@ -2604,7 +2592,6 @@ async def test_case_decision(report, case_id, decision):
 ```
 
 - [ ] **Step 2: Run** → Expected: FAIL.
-
 - [ ] **Step 3: Implement `app/eval/runner.py`**
 
 ```python
@@ -2756,7 +2743,6 @@ asyncio.run(main())
 ```
 
 - [ ] **Step 6: Run** `pytest tests/test_eval_cases.py -q` → iterate until **12/12 PASS** (this is the moment mismatches surface; fix the responsible agent, not the eval). Then `python -m app.eval` → writes `docs/eval_report.md`. Then full `pytest -q`.
-
 - [ ] **Step 7: STOP — present 12/12 output + eval_report.md to Sumanth; he commits (`feat: eval runner, 12/12 test cases green`).**
 
 ---
@@ -2764,6 +2750,7 @@ asyncio.run(main())
 ### Task 17: GeminiClient (real vision path)
 
 **Files:**
+
 - Create: `app/llm/gemini_client.py`
 - Test: `tests/test_gemini_client.py` (mock-transport unit tests + `@pytest.mark.live`)
 
@@ -2818,7 +2805,6 @@ async def test_live_classification_smoke():
 Add to `pytest.ini`: `markers = live: hits the real Gemini API` and set `addopts = -m "not live"`.
 
 - [ ] **Step 2: Run** → Expected: FAIL.
-
 - [ ] **Step 3: Implement `app/llm/gemini_client.py`**
 
 ```python
@@ -2903,7 +2889,6 @@ class GeminiClient:
 
 - [ ] **Step 4: Run** `pytest tests/test_gemini_client.py -q` → unit tests PASS (live test deselected).
 - [ ] **Step 5 (manual, needs Sumanth's `GEMINI_API_KEY`):** `GEMINI_API_KEY=... pytest -m live -q` after Task 18 produces sample images.
-
 - [ ] **Step 6: STOP — present to Sumanth; he commits (`feat: gemini vision client with schema retry`).**
 
 ---
@@ -2911,6 +2896,7 @@ class GeminiClient:
 ### Task 18: Sample document generator
 
 **Files:**
+
 - Create: `scripts/generate_sample_docs.py`, output in `sample_docs/`
 
 - [ ] **Step 1: Implement the generator** — PIL-rendered documents matching `sample_documents_guide.md` layouts. Generate:
@@ -2965,7 +2951,6 @@ Write all six builders fully in the implementation (same pattern as `prescriptio
 
 - [ ] **Step 2: Run** `python scripts/generate_sample_docs.py` → Expected: `wrote 6 docs to sample_docs/`. Open 2-3 visually to confirm legibility.
 - [ ] **Step 3 (with Sumanth's key):** run the live Gemini test against `prescription_clean.png` and `pharmacy_bill_blurry.png`; blurry one should classify `UNREADABLE`/`PARTIAL`. Add the blurry result to MockClient fixtures if useful for demos.
-
 - [ ] **Step 4: STOP — present generated images to Sumanth; he commits (`feat: sample document generator`).**
 
 ---
@@ -2973,6 +2958,7 @@ Write all six builders fully in the implementation (same pattern as `prescriptio
 ### Task 19: Streamlit UI
 
 **Files:**
+
 - Create: `ui/streamlit_app.py`
 
 Three pages via sidebar radio. Talks ONLY to the API (`API_BASE_URL` env, default `http://localhost:8000`).
@@ -3070,7 +3056,6 @@ else:
 ```
 
 - [ ] **Step 2: Manual verification** — run both: `uvicorn app.api.main:app --port 8000` and `streamlit run ui/streamlit_app.py`. Walk through: submit with sample docs (mock mode), review list, eval page 12/12. Screenshot for the README.
-
 - [ ] **Step 3: STOP — demo to Sumanth; he commits (`feat: streamlit ui with trace viewer and eval page`).**
 
 ---
@@ -3078,6 +3063,7 @@ else:
 ### Task 20: Deploy (Render) + README
 
 **Files:**
+
 - Create: `render.yaml`, `README.md`, `.env.example`
 
 - [ ] **Step 1: `render.yaml`**
@@ -3116,6 +3102,7 @@ services:
 ### Task 21: Final docs — architecture, contracts, eval report
 
 **Files:**
+
 - Create: `docs/architecture.md`, `docs/contracts.md`; regenerate `docs/eval_report.md`
 
 - [ ] **Step 1: `docs/architecture.md`** — adapt the spec (`docs/superpowers/specs/2026-06-12-claims-pipeline-design.md`) into the graded deliverable: components & interactions (embed the HLD/Mermaid diagrams from `...-diagrams.md`), why this design, considered-and-rejected table, failure handling, the 5 documented assumptions, limitations + 10x scaling section.
@@ -3132,10 +3119,3 @@ services:
 - **Type consistency check done:** `ClaimOutcome.status` is `"COMPLETED"|"STOPPED"`; `DocVerdict.detected_type` is `str` (StrEnum values compare equal to strings); `ExtractionRecord.data` is a plain dict everywhere downstream (agents index with `.get`).
 - **Known risk:** TC008's expected reasons are only `PER_CLAIM_EXCEEDED` while our pipeline also runs (and passes) sub-limit checks — eval asserts expected ⊆ produced, so safe. TC012 exclusion match relies on the keyword table — covered by `test_tc012_excluded_condition`.
 - **Plan ordering rationale:** repository (14) lands after orchestrator (13) because the orchestrator takes it as an optional dependency; API (15) wires everything; eval (16) is the acceptance gate before any LLM/UI/deploy work — the system is fully demonstrable in mock mode from Task 16 onward.
-
-
-
-
-
-
-

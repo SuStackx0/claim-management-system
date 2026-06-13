@@ -1,4 +1,4 @@
-# Design: Health Insurance Claims Processing System (Plum AI Engineer Assignment)
+Design: Health Insurance Claims Processing System (Plum AI Engineer Assignment)
 
 **Date:** 2026-06-12
 **Status:** Approved in brainstorming; pending implementation plan
@@ -20,16 +20,16 @@ Graded weights: System Design 30% (multi-agent bonus), Engineering Quality 25%, 
 
 ## 2. Decisions Made (with rejected alternatives)
 
-| Decision | Chosen | Rejected & why |
-|---|---|---|
-| Stack | **FastAPI backend + Streamlit thin client over HTTP** | Full Next.js (weaker fit for Python AI tooling and pytest story); React SPA (UI polish is not where the grade is — time goes to engine/tests instead) |
-| Orchestration | **Hand-rolled deterministic orchestrator running specialized agents in fixed order with early exits** | LLM supervisor / dynamic routing (non-deterministic adjudication is indefensible in insurance, flaky on eval); LangGraph/CrewAI (must own every line for the live-extension interview) |
-| Document intake | **Dual path** — vision LLM for real uploads; eval runner injects test-case content post-extraction | Vision-only (eval becomes LLM-flaky; a misread digit breaks expected amounts); structured-only (fails the AI-integration criterion) |
-| Money & policy logic | **Pure deterministic code**; LLM never does arithmetic or rule application | LLM adjudication (untestable to the rupee, weak interview answer) |
-| LLM provider | **Gemini 2.5 Flash free tier behind an `LLMClient` interface, plus `MockClient`** | Anthropic/OpenAI (no free tier; provider is swappable behind interface anyway) |
-| Persistence | **SQLite** (claims, decisions, traces as JSON; few indexed columns) | Postgres (ops overhead, not where the points are); in-memory (review UI needs history; fraud checks need lookback) |
-| Deploy | **Render free tier, two services from one repo** (`render.yaml`) | Railway (card requirement), HF Spaces (fiddlier Docker), Streamlit Cloud split (two platforms) |
-| UI | **Streamlit calling the API over HTTP only** — never imports pipeline code | Direct import (collapses the API contract story; the API must be the product) |
+| Decision             | Chosen                                                                                                      | Rejected & why                                                                                                                                                                         |
+| -------------------- | ----------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Stack                | **FastAPI backend + Streamlit thin client over HTTP**                                                 | Full Next.js (weaker fit for Python AI tooling and pytest story); React SPA (UI polish is not where the grade is — time goes to engine/tests instead)                                 |
+| Orchestration        | **Hand-rolled deterministic orchestrator running specialized agents in fixed order with early exits** | LLM supervisor / dynamic routing (non-deterministic adjudication is indefensible in insurance, flaky on eval); LangGraph/CrewAI (must own every line for the live-extension interview) |
+| Document intake      | **Dual path** — vision LLM for real uploads; eval runner injects test-case content post-extraction   | Vision-only (eval becomes LLM-flaky; a misread digit breaks expected amounts); structured-only (fails the AI-integration criterion)                                                    |
+| Money & policy logic | **Pure deterministic code**; LLM never does arithmetic or rule application                            | LLM adjudication (untestable to the rupee, weak interview answer)                                                                                                                      |
+| LLM provider         | **Gemini 2.5 Flash free tier behind an `LLMClient` interface, plus `MockClient`**                 | Anthropic/OpenAI (no free tier; provider is swappable behind interface anyway)                                                                                                         |
+| Persistence          | **SQLite** (claims, decisions, traces as JSON; few indexed columns)                                   | Postgres (ops overhead, not where the points are); in-memory (review UI needs history; fraud checks need lookback)                                                                     |
+| Deploy               | **Render free tier, two services from one repo** (`render.yaml`)                                    | Railway (card requirement), HF Spaces (fiddlier Docker), Streamlit Cloud split (two platforms)                                                                                         |
+| UI                   | **Streamlit calling the API over HTTP only** — never imports pipeline code                           | Direct import (collapses the API contract story; the API must be the product)                                                                                                          |
 
 ## 3. Architecture (HLD)
 
@@ -81,30 +81,35 @@ class Agent(Protocol):
 `ClaimContext` is the accumulating state: claim, member, policy view, document verdicts, extractions, findings, trace.
 
 ### 4.1 IntakeAgent — pure code, fatal
+
 - **In:** `ClaimSubmission {member_id, policy_id, claim_category, treatment_date, claimed_amount, documents[], claims_history?, ytd_claims_amount?, simulate_component_failure?}`
 - **Out:** validated `Claim`, resolved `Member`, `PolicyView` for the category
 - **Checks:** member in roster; policy active on treatment date; amount ≥ `submission_rules.minimum_claim_amount`; within `deadline_days_from_treatment`; category in `opd_categories`
 - **Errors:** `MEMBER_NOT_FOUND | POLICY_INACTIVE | AMOUNT_BELOW_MINIMUM | DEADLINE_EXCEEDED | INVALID_CATEGORY`
 
 ### 4.2 DocVerifierAgent — LLM classify/readability + code rules; fatal (early-exit gate)
+
 - **In:** documents; `document_requirements[category]` from policy
 - **Out:** per-doc `DocVerdict {detected_type, readability: GOOD|PARTIAL|UNREADABLE, confidence}`; requirements diff `{missing_types[], unexpected_types[]}`; member-facing message on failure
 - **Behavior:** wrong/missing type → names what was uploaded and what is required (TC001); unreadable required doc → `REUPLOAD_REQUIRED` naming the exact file, claim **not** rejected (TC002)
 - **Errors:** `MISSING_REQUIRED_DOCUMENT | WRONG_DOCUMENT_TYPE | DOCUMENT_UNREADABLE`
 
 ### 4.3 ExtractionAgent — LLM vision, asyncio fan-out per doc; degradable
+
 - **In:** verified documents
 - **Out:** per doc-type model (`PrescriptionData`, `BillData` w/ line items, `LabReportData`, `PharmacyBillData`), per-field confidence, `unextracted_fields[]`, `source: "vision"|"provided"`
 - **Behavior:** vision path = doc-type-specific prompt → JSON-schema output → Pydantic validation → 1 retry → else doc marked DEGRADED; test path = injected content
 - **Errors:** `EXTRACTION_FAILED` (per-doc, non-fatal)
 
 ### 4.4 ConsistencyAgent — code + LLM fuzzy names; fatal on patient mismatch only
+
 - **In:** extractions, member + dependents
 - **Checks:** patient names pairwise across docs and vs member roster (fuzzy: "R. Kumar" ≈ "Rajesh Kumar"; "Arjun Mehta" ≠) (TC003); document dates vs treatment_date; bill total vs claimed amount
 - **Out:** `ConsistencyFinding[] {check, severity: FATAL|WARNING, detail}`
 - **Errors:** `PATIENT_MISMATCH` (fatal, includes the names found per document); `DATE_MISMATCH | AMOUNT_MISMATCH` (warnings, dock confidence)
 
 ### 4.5 AdjudicatorAgent — pure code, zero LLM; the core
+
 - **In:** claim, extractions, full policy
 - **Ordered checks, each emitting a trace entry with `rule_ref` (JSON path into policy_terms.json):**
   1. Exclusions — diagnosis/treatment vs `exclusions.*` (TC012)
@@ -117,22 +122,26 @@ class Agent(Protocol):
 - **Errors:** none expected (pure function of validated inputs); orchestrator treats a raise as fatal internal error
 
 ### 4.6 FraudAgent — pure code rules; degradable (TC011 kills this one)
+
 - **In:** claim, `claims_history`, `fraud_thresholds`
 - **Checks:** same-day count > `same_day_claims_limit` (TC009); monthly count; amount > `auto_manual_review_above`; alteration flags from extraction
 - **Out:** `FraudSignal[] {signal, detail}`, fraud_score ∈ [0,1]
 
 ### 4.7 Aggregator — pure code
+
 - **In:** complete `ClaimTrace`
 - **Logic:** fatal already exited → here: fraud signals ⇒ `MANUAL_REVIEW`; all line items rejected ⇒ `REJECTED`; some rejected ⇒ `PARTIAL`; all approved ⇒ `APPROVED`; confidence < threshold ⇒ append manual-review recommendation
 - **Out:** `Decision {status, approved_amount, reasons[], confidence, member_message, ops_summary}`
 
 ### 4.8 LLMClient interface
+
 ```python
 class LLMClient(Protocol):
     async def classify_document(self, doc: DocumentInput) -> DocClassification: ...
     async def extract(self, doc: DocumentInput, schema: type[BaseModel]) -> ExtractionResult: ...
     async def names_equivalent(self, a: str, b: str) -> NameMatch: ...
 ```
+
 Implementations: `GeminiClient` (google-genai SDK, `gemini-2.5-flash`, JSON-schema response mode, 30s timeout, 1 retry on validation failure) and `MockClient` (canned outputs keyed to bundled sample docs; selected via `LLM_PROVIDER` env var). All raises are wrapped into `LLMError {kind: TIMEOUT|RATE_LIMIT|SCHEMA_INVALID|PROVIDER_ERROR}`.
 
 ## 5. Trace Schema
@@ -202,18 +211,18 @@ Invariants: every check carries a `rule_ref` into `policy_terms.json`; `detail` 
 
 ## 10. Tech Specs
 
-| Concern | Choice |
-|---|---|
-| Language | Python 3.12 |
-| API | FastAPI + Uvicorn, fully async handlers |
-| Domain models | Pydantic v2 |
-| Persistence | SQLite (stdlib `sqlite3`; traces/decisions as JSON columns + indexed claim_id/member_id/date); thin repository module |
-| LLM | `google-genai` SDK, `gemini-2.5-flash`, JSON-schema response mode; `MockClient` fallback via `LLM_PROVIDER` env |
-| UI | Streamlit, `requests`/`httpx` to the API (`API_BASE_URL` env) |
-| Tests | pytest + pytest-asyncio; coverage on `app/core` and `app/agents` |
-| Docs gen | eval report generated by the eval runner |
-| Deploy | Render free tier ×2 services via `render.yaml` (api: uvicorn; ui: streamlit); env vars: `GEMINI_API_KEY`, `LLM_PROVIDER`, `API_BASE_URL` |
-| Repo | GitHub; conventional commits per component |
+| Concern       | Choice                                                                                                                                            |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Language      | Python 3.12                                                                                                                                       |
+| API           | FastAPI + Uvicorn, fully async handlers                                                                                                           |
+| Domain models | Pydantic v2                                                                                                                                       |
+| Persistence   | SQLite (stdlib `sqlite3`; traces/decisions as JSON columns + indexed claim_id/member_id/date); thin repository module                           |
+| LLM           | `google-genai` SDK, `gemini-2.5-flash`, JSON-schema response mode; `MockClient` fallback via `LLM_PROVIDER` env                           |
+| UI            | Streamlit,`requests`/`httpx` to the API (`API_BASE_URL` env)                                                                                |
+| Tests         | pytest + pytest-asyncio; coverage on `app/core` and `app/agents`                                                                              |
+| Docs gen      | eval report generated by the eval runner                                                                                                          |
+| Deploy        | Render free tier ×2 services via `render.yaml` (api: uvicorn; ui: streamlit); env vars: `GEMINI_API_KEY`, `LLM_PROVIDER`, `API_BASE_URL` |
+| Repo          | GitHub; conventional commits per component                                                                                                        |
 
 ```
 repo/

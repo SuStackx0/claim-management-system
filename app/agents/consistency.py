@@ -1,4 +1,5 @@
 from __future__ import annotations
+import itertools
 import time
 from app.agents.base import Agent
 from app.core.context import ClaimContext, ConsistencyFinding
@@ -28,8 +29,7 @@ class ConsistencyAgent(Agent):
 
         # 1. patient names across documents must agree
         named = [(e, e.data.get("patient_name")) for e in ctx.extractions if e.data.get("patient_name")]
-        for i in range(len(named) - 1):
-            (ea, na), (eb, nb) = named[i], named[i + 1]
+        for (ea, na), (eb, nb) in itertools.combinations(named, 2):
             eq, fuzzy = await self._names_match(na, nb)
             if not eq:
                 ctx.findings.append(ConsistencyFinding(check="PATIENT_MATCH", severity="FATAL",

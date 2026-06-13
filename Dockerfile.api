@@ -1,0 +1,26 @@
+FROM python:3.13-slim
+
+WORKDIR /app
+
+# Install dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code and data
+COPY app/ app/
+COPY data/ data/
+COPY .env.example .env.example
+
+# Non-root user for security
+RUN adduser --disabled-password --gecos "" appuser && chown -R appuser /app
+USER appuser
+
+ENV PYTHONUNBUFFERED=1 \
+    LLM_PROVIDER=mock \
+    DB_PATH=/tmp/claims.db \
+    POLICY_PATH=data/policy_terms.json \
+    TEST_CASES_PATH=data/test_cases.json
+
+EXPOSE 8000
+
+CMD ["uvicorn", "app.api.main:app", "--host", "0.0.0.0", "--port", "8000"]

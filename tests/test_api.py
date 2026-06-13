@@ -39,3 +39,72 @@ async def test_get_unknown_claim_404(client):
 async def test_list_members(client):
     r = await client.get("/members")
     assert any(m["member_id"] == "EMP001" for m in r.json())
+
+
+# ---------------------------------------------------------------------------
+# Multipart upload path  (POST /claims/upload)
+# ---------------------------------------------------------------------------
+# The mock LLM client classifies documents by filename keywords:
+#   "bill"  / "invoice" / "receipt"  => HOSPITAL_BILL
+#   "prescription" / "rx"            => PRESCRIPTION
+# The mock extraction fixture is keyed by exact filename.  "sample_bill.jpg"
+# returns City Clinic data (total=1500, patient=Rajesh Kumar) and
+# "sample_prescription.jpg" returns the matching Viral Fever prescription.
+# The consultation policy requires both HOSPITAL_BILL and PRESCRIPTION.
+# ---------------------------------------------------------------------------
+
+_UPLOAD_PAYLOAD = {
+    "member_id": "EMP001",
+    "policy_id": "PLUM_GHI_2024",
+    "claim_category": "CONSULTATION",
+    "treatment_date": "2024-11-01",
+    "claimed_amount": 1500,
+    "ytd_claims_amount": 5000,
+}
+
+
+async def test_upload_single_file_stops_on_missing_doc(client):
+    """One bill file only — prescription missing — pipeline stops with a
+    doc-problem message listing both required types."""
+    import json as _json
+
+    r = await client.post(
+        "/claims/upload",
+        data={"payload": _json.dumps(_UPLOAD_PAYLOAD)},
+        files=[("files", ("sample_bill.jpg", b"fake-bytes", "image/jpeg"))],
+    )
+    assert r.status_code == 200
+    body = r.json()
+    # Response shape: claim_id present, status STOPPED, no decision
+    assert "claim_id" in body
+    assert body["status"] == "STOPPED"
+    assert body["decision"] is None
+    # Member message names the missing document type
+    assert "PRESCRIPTION" in body["member_message"]
+    # Trace dict is always present (may be empty on early stop but key exists)
+    assert "trace" in body
+
+
+async def test_upload_two_files_completes_and_approves(client):
+    """Bill + prescription files → pipeline completes with APPROVED outcome and
+    a 10% co-pay deduction (1500 - 150 = 1350), mirroring TC004 on the JSON path."""
+    import json as _json
+
+    r = await client.post(
+        "/claims/upload",
+        data={"payload": _json.dumps(_UPLOAD_PAYLOAD)},
+        files=[
+            ("files", ("sample_bill.jpg", b"fake-bytes", "image/jpeg")),
+            ("files", ("sample_prescription.jpg", b"fake-bytes", "image/jpeg")),
+        ],
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert "claim_id" in body
+    assert body["status"] == "COMPLETED"
+    decision = body["decision"]
+    assert decision is not None
+    assert decision["status"] == "APPROVED"
+    assert decision["approved_amount"] == 1350
+    # Trace must be present and contain the ADJUDICATION step
+    assert any(s["step"] == "ADJUDICATION" for s in body["trace"]["steps"])

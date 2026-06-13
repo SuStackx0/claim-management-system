@@ -10,10 +10,10 @@
 
 ```json
 {
-  "claim_id": "CLM-AA63775A",
+  "claim_id": "CLM-3E74A707",
   "pipeline_version": "1.0.0",
-  "started_at": "2026-06-13T10:08:41.488695Z",
-  "completed_at": "2026-06-13T10:08:41.490352Z",
+  "started_at": "2026-06-13T10:47:33.760649Z",
+  "completed_at": "2026-06-13T10:47:33.760846Z",
   "steps": [
     {
       "step": "INTAKE",
@@ -89,7 +89,7 @@
           ]
         }
       },
-      "duration_ms": 1
+      "duration_ms": 0
     }
   ],
   "decision": null
@@ -105,10 +105,10 @@
 
 ```json
 {
-  "claim_id": "CLM-41895E66",
+  "claim_id": "CLM-E4EE88BF",
   "pipeline_version": "1.0.0",
-  "started_at": "2026-06-13T10:08:41.490754Z",
-  "completed_at": "2026-06-13T10:08:41.490852Z",
+  "started_at": "2026-06-13T10:47:33.760899Z",
+  "completed_at": "2026-06-13T10:47:33.760929Z",
   "steps": [
     {
       "step": "INTAKE",
@@ -192,10 +192,10 @@
 
 ```json
 {
-  "claim_id": "CLM-782CEAA2",
+  "claim_id": "CLM-6545D13C",
   "pipeline_version": "1.0.0",
-  "started_at": "2026-06-13T10:08:41.490939Z",
-  "completed_at": "2026-06-13T10:08:41.491303Z",
+  "started_at": "2026-06-13T10:47:33.760956Z",
+  "completed_at": "2026-06-13T10:47:33.761084Z",
   "steps": [
     {
       "step": "INTAKE",
@@ -363,10 +363,10 @@
 
 ```json
 {
-  "claim_id": "CLM-06C5F80E",
+  "claim_id": "CLM-DEE88CC2",
   "pipeline_version": "1.0.0",
-  "started_at": "2026-06-13T10:08:41.491685Z",
-  "completed_at": "2026-06-13T10:08:41.492272Z",
+  "started_at": "2026-06-13T10:47:33.761120Z",
+  "completed_at": "2026-06-13T10:47:33.761317Z",
   "steps": [
     {
       "step": "INTAKE",
@@ -704,10 +704,10 @@
 
 ```json
 {
-  "claim_id": "CLM-88C710BF",
+  "claim_id": "CLM-5130C298",
   "pipeline_version": "1.0.0",
-  "started_at": "2026-06-13T10:08:41.492405Z",
-  "completed_at": "2026-06-13T10:08:41.492706Z",
+  "started_at": "2026-06-13T10:47:33.761365Z",
+  "completed_at": "2026-06-13T10:47:33.761498Z",
   "steps": [
     {
       "step": "INTAKE",
@@ -990,10 +990,10 @@
 
 ```json
 {
-  "claim_id": "CLM-816CD3D4",
+  "claim_id": "CLM-0C91DA18",
   "pipeline_version": "1.0.0",
-  "started_at": "2026-06-13T10:08:41.492802Z",
-  "completed_at": "2026-06-13T10:08:41.493077Z",
+  "started_at": "2026-06-13T10:47:33.761538Z",
+  "completed_at": "2026-06-13T10:47:33.761810Z",
   "steps": [
     {
       "step": "INTAKE",
@@ -1295,10 +1295,10 @@
 
 ```json
 {
-  "claim_id": "CLM-721E46C0",
+  "claim_id": "CLM-5765C504",
   "pipeline_version": "1.0.0",
-  "started_at": "2026-06-13T10:08:41.493178Z",
-  "completed_at": "2026-06-13T10:08:41.493437Z",
+  "started_at": "2026-06-13T10:47:33.761856Z",
+  "completed_at": "2026-06-13T10:47:33.761994Z",
   "steps": [
     {
       "step": "INTAKE",
@@ -1609,10 +1609,10 @@
 
 ```json
 {
-  "claim_id": "CLM-94D70E66",
+  "claim_id": "CLM-6A47A47C",
   "pipeline_version": "1.0.0",
-  "started_at": "2026-06-13T10:08:41.493533Z",
-  "completed_at": "2026-06-13T10:08:41.493853Z",
+  "started_at": "2026-06-13T10:47:33.762051Z",
+  "completed_at": "2026-06-13T10:47:33.762171Z",
   "steps": [
     {
       "step": "INTAKE",
@@ -1922,10 +1922,10 @@
 
 ```json
 {
-  "claim_id": "CLM-89A4515E",
+  "claim_id": "CLM-5841F70A",
   "pipeline_version": "1.0.0",
-  "started_at": "2026-06-13T10:08:41.494393Z",
-  "completed_at": "2026-06-13T10:08:41.496306Z",
+  "started_at": "2026-06-13T10:47:33.762212Z",
+  "completed_at": "2026-06-13T10:47:33.762339Z",
   "steps": [
     {
       "step": "INTAKE",
@@ -2209,7 +2209,7 @@
       ],
       "confidence_entries": [],
       "error": null,
-      "duration_ms": 1
+      "duration_ms": 0
     },
     {
       "step": "AGGREGATION",
@@ -2244,10 +2244,10 @@
 
 ```json
 {
-  "claim_id": "CLM-A44EEE99",
+  "claim_id": "CLM-72E57F84",
   "pipeline_version": "1.0.0",
-  "started_at": "2026-06-13T10:08:41.496403Z",
-  "completed_at": "2026-06-13T10:08:41.496677Z",
+  "started_at": "2026-06-13T10:47:33.762377Z",
+  "completed_at": "2026-06-13T10:47:33.762511Z",
   "steps": [
     {
       "step": "INTAKE",
@@ -2577,10 +2577,10 @@
 
 ```json
 {
-  "claim_id": "CLM-28E94FA9",
+  "claim_id": "CLM-52202552",
   "pipeline_version": "1.0.0",
-  "started_at": "2026-06-13T10:08:41.496776Z",
-  "completed_at": "2026-06-13T10:08:41.497059Z",
+  "started_at": "2026-06-13T10:47:33.762549Z",
+  "completed_at": "2026-06-13T10:47:33.762680Z",
   "steps": [
     {
       "step": "INTAKE",
@@ -2890,10 +2890,10 @@
 
 ```json
 {
-  "claim_id": "CLM-B517A6CE",
+  "claim_id": "CLM-6BB855A4",
   "pipeline_version": "1.0.0",
-  "started_at": "2026-06-13T10:08:41.497416Z",
-  "completed_at": "2026-06-13T10:08:41.497640Z",
+  "started_at": "2026-06-13T10:47:33.762722Z",
+  "completed_at": "2026-06-13T10:47:33.762833Z",
   "steps": [
     {
       "step": "INTAKE",

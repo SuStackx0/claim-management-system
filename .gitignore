@@ -5,3 +5,4 @@ claims.db
 .env
 .pytest_cache/
 .dual-graph/
+CONTEXT.md

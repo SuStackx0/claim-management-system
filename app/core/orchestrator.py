@@ -1,5 +1,5 @@
 from __future__ import annotations
-import time, uuid
+import asyncio, time, uuid
 from datetime import datetime, timezone
 from app.agents.aggregator import Aggregator
 from app.agents.adjudicator import AdjudicatorAgent
@@ -46,7 +46,7 @@ class Orchestrator:
                                     duration_ms=int((time.monotonic() - t0) * 1000))
                 ctx.trace.append(result)
                 if agent.fatal:
-                    return self._stopped(ctx, f.error)
+                    return await self._stopped(ctx, f.error)
                 self._degrade(ctx, agent, f.error.message)
                 continue
             except Exception as e:
@@ -56,7 +56,7 @@ class Orchestrator:
                                     duration_ms=int((time.monotonic() - t0) * 1000))
                 ctx.trace.append(result)
                 if agent.fatal and not isinstance(agent, FraudAgent):
-                    return self._stopped(ctx, err)
+                    return await self._stopped(ctx, err)
                 self._degrade(ctx, agent, str(e))
                 continue
             ctx.trace.append(result)
@@ -65,20 +65,24 @@ class Orchestrator:
                                decision=ctx.trace.decision,
                                member_message=ctx.trace.decision.member_message,
                                trace=ctx.trace.model_dump(mode="json"))
-        if self.repository:
-            self.repository.save(ctx.submission, outcome)
+        await self._persist(ctx.submission, outcome)
         return outcome
+
+    async def _persist(self, submission: ClaimSubmission, outcome: ClaimOutcome) -> None:
+        # sqlite3 is synchronous; run it off the event loop so the pipeline's
+        # async handlers are never blocked on disk I/O.
+        if self.repository:
+            await asyncio.to_thread(self.repository.save, submission, outcome)
 
     def _degrade(self, ctx: ClaimContext, agent, reason: str) -> None:
         ctx.trace.steps[-1].status = StepStatus.SKIPPED
         ctx.trace.steps[-1].confidence_entries.append(
             ConfidenceEntry(factor=0.7, reason=f"{agent.name} failed and was skipped: {reason}"))
 
-    def _stopped(self, ctx: ClaimContext, error: AgentError) -> ClaimOutcome:
+    async def _stopped(self, ctx: ClaimContext, error: AgentError) -> ClaimOutcome:
         ctx.trace.completed_at = datetime.now(timezone.utc)
         outcome = ClaimOutcome(claim_id=ctx.trace.claim_id, status="STOPPED",
                                decision=None, member_message=error.member_message,
                                trace=ctx.trace.model_dump(mode="json"))
-        if self.repository:
-            self.repository.save(ctx.submission, outcome)
+        await self._persist(ctx.submission, outcome)
         return outcome

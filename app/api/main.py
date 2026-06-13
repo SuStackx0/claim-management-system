@@ -1,5 +1,5 @@
 from __future__ import annotations
-import json
+import asyncio, json
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from app.api.schemas import HealthResponse
 from app.config import settings
@@ -7,7 +7,7 @@ from app.core.orchestrator import Orchestrator
 from app.core.policy_loader import PolicyLoader
 from app.core.repository import Repository
 from app.llm.mock_client import MockClient
-from app.models.domain import ClaimOutcome, ClaimSubmission, DocumentInput
+from app.models.domain import ClaimOutcome, ClaimSubmission
 
 
 def make_llm():
@@ -43,23 +43,25 @@ def create_app(db_path: str | None = None) -> FastAPI:
         files: list[UploadFile] = File(...),
     ) -> ClaimOutcome:
         data = json.loads(payload)
-        docs = []
-        for i, f in enumerate(files):
-            docs.append(DocumentInput(file_id=f"UP{i+1}", file_name=f.filename,
-                                      file_bytes=await f.read(),
-                                      mime_type=f.content_type))
-        data["documents"] = []
+        data["documents"] = [
+            {
+                "file_id": f"UP{i + 1}",
+                "file_name": f.filename,
+                "file_bytes": await f.read(),
+                "mime_type": f.content_type,
+            }
+            for i, f in enumerate(files)
+        ]
         sub = ClaimSubmission.model_validate(data)
-        sub.documents = docs
         return await orch.process(sub)
 
     @app.get("/claims")
     async def list_claims():
-        return repo.list_claims()
+        return await asyncio.to_thread(repo.list_claims)
 
     @app.get("/claims/{claim_id}")
     async def get_claim(claim_id: str):
-        row = repo.get(claim_id)
+        row = await asyncio.to_thread(repo.get, claim_id)
         if row is None:
             raise HTTPException(404, f"claim {claim_id} not found")
         return row

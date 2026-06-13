@@ -1,4 +1,5 @@
 <!-- dgc-policy-v11 -->
+
 # Dual-Graph Context Policy
 
 This project uses a local dual-graph MCP server for efficient context retrieval.
@@ -6,15 +7,13 @@ This project uses a local dual-graph MCP server for efficient context retrieval.
 ## MANDATORY: Always follow this order
 
 1. **Call `graph_continue` first** — before any file exploration, grep, or code reading.
-
 2. **If `graph_continue` returns `needs_project=true`**: call `graph_scan` with the
    current project directory (`pwd`). Do NOT ask the user.
-
 3. **If `graph_continue` returns `skip=true`**: project has fewer than 5 files.
    Do NOT do broad or recursive exploration. Read only specific files if their names
    are mentioned, or ask the user what to work on.
-
 4. **Read `recommended_files`** using `graph_read` — **one call per file**.
+
    - `graph_read` accepts a single `file` parameter (string). Call it separately for each
      recommended file. Do NOT pass an array or batch multiple files into one call.
    - `recommended_files` may contain `file::symbol` entries (e.g. `src/auth.ts::handleLogin`).
@@ -23,8 +22,8 @@ This project uses a local dual-graph MCP server for efficient context retrieval.
    - Example: if `recommended_files` is `["src/auth.ts::handleLogin", "src/db.ts"]`,
      call `graph_read(file: "src/auth.ts::handleLogin")` and `graph_read(file: "src/db.ts")`
      as two separate calls (they can be parallel).
-
 5. **Check `confidence` and obey the caps strictly:**
+
    - `confidence=high` -> Stop. Do NOT grep or explore further.
    - `confidence=medium` -> If recommended files are insufficient, call `fallback_rg`
      at most `max_supplementary_greps` time(s) with specific terms, then `graph_read`
@@ -59,6 +58,7 @@ Live dashboard URL is printed at startup next to "Token usage".
 Whenever you make a decision, identify a task, note a next step, fact, or blocker during a conversation, call `graph_add_memory`.
 
 **To add an entry:**
+
 ```
 graph_add_memory(type="decision|task|next|fact|blocker", content="one sentence max 15 words", tags=["topic"], files=["relevant/file.ts"])
 ```
@@ -66,6 +66,7 @@ graph_add_memory(type="decision|task|next|fact|blocker", content="one sentence m
 **Do NOT write context-store.json directly** — always use `graph_add_memory`. It applies pruning and keeps the store healthy.
 
 **Rules:**
+
 - Only log things worth remembering across sessions (not every minor detail)
 - `content` must be under 15 words
 - `files` lists the files this decision/task relates to (can be empty)
@@ -74,6 +75,7 @@ graph_add_memory(type="decision|task|next|fact|blocker", content="one sentence m
 ## Session End
 
 When the user signals they are done (e.g. "bye", "done", "wrap up", "end session"), proactively update `CONTEXT.md` in the project root with:
+
 - **Current Task**: one sentence on what was being worked on
 - **Key Decisions**: bullet list, max 3 items
 - **Next Steps**: bullet list, max 3 items
