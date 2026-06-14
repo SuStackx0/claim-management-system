@@ -14,6 +14,12 @@ class ErrorCode(StrEnum):
     EXTRACTION_FAILED = "EXTRACTION_FAILED"
     PATIENT_MISMATCH = "PATIENT_MISMATCH"
     INTERNAL_ERROR = "INTERNAL_ERROR"
+    # Infrastructure-side failures — kept distinct from the member-fault codes
+    # above so the member is never told "your document is unreadable" when the
+    # real cause is our LLM provider being down, and so ops can alert on these
+    # separately from genuine document problems.
+    PROVIDER_UNAVAILABLE = "PROVIDER_UNAVAILABLE"
+    PROCESSING_TIMEOUT = "PROCESSING_TIMEOUT"
 
 class AgentError(BaseModel):
     code: ErrorCode

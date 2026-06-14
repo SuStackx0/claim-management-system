@@ -50,7 +50,7 @@ class Orchestrator:
         for agent in self.agents:
             t0 = time.monotonic()
             try:
-                result = await agent.run(ctx)
+                result = await self._run_agent(agent, ctx)
             except AgentFailure as f:
                 result = StepResult(step=agent.step, agent=agent.name,
                                     status=StepStatus.FAIL, error=f.error,
@@ -59,6 +59,30 @@ class Orchestrator:
                 if agent.fatal:
                     return await self._stopped(ctx, f.error)
                 self._degrade(ctx, agent, f.error.message)
+                continue
+            except asyncio.TimeoutError:
+                # The agent blew its wall-clock budget (a hung provider that never
+                # responds). Treat it as a step failure and route it like any
+                # other: stop a fatal step, degrade a non-fatal one — but never
+                # hold the request open waiting on a dependency that won't return.
+                err = AgentError(
+                    code=ErrorCode.PROCESSING_TIMEOUT,
+                    message=f"{agent.name} exceeded {settings.agent_timeout_s:.0f}s deadline",
+                    member_message=(
+                        "Your claim is taking longer than expected due to a temporary "
+                        "system slowdown. No action is needed — we'll keep processing it "
+                        "and update you shortly."),
+                )
+                logger.warning("[%s] %s TIMEOUT after %dms (deadline %.0fs)",
+                               claim_id, agent.step,
+                               int((time.monotonic() - t0) * 1000), settings.agent_timeout_s)
+                result = StepResult(step=agent.step, agent=agent.name,
+                                    status=StepStatus.FAIL, error=err,
+                                    duration_ms=int((time.monotonic() - t0) * 1000))
+                ctx.trace.append(result)
+                if agent.fatal and not isinstance(agent, FraudAgent):
+                    return await self._stopped(ctx, err)
+                self._degrade(ctx, agent, err.message)
                 continue
             except Exception as e:
                 err = AgentError(code=ErrorCode.INTERNAL_ERROR, message=str(e))
@@ -90,6 +114,19 @@ class Orchestrator:
             total_ms,
         )
         return outcome
+
+    async def _run_agent(self, agent, ctx: ClaimContext) -> StepResult:
+        """Run one agent under an optional wall-clock deadline.
+
+        With agent_timeout_s <= 0 the deadline is disabled (and on the mock path,
+        where every call is instant, it never fires anyway). asyncio.wait_for
+        cancels the underlying coroutine on expiry and raises TimeoutError, which
+        the caller routes through the normal stop/degrade path.
+        """
+        timeout = settings.agent_timeout_s
+        if timeout and timeout > 0:
+            return await asyncio.wait_for(agent.run(ctx), timeout=timeout)
+        return await agent.run(ctx)
 
     async def _persist(self, submission: ClaimSubmission, outcome: ClaimOutcome) -> None:
         # sqlite3 is synchronous; run it off the event loop so the pipeline's

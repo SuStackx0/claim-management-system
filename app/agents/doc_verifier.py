@@ -4,7 +4,15 @@ from app.agents.base import Agent
 from app.core.context import ClaimContext, DocVerdict
 from app.core.errors import AgentError, AgentFailure, ErrorCode
 from app.core.trace import CheckResult, ConfidenceEntry, PolicyCheck, StepResult, StepStatus
-from app.llm.base import LLMClient, LLMError
+from app.llm.base import LLMClient, LLMError, LLMErrorKind
+
+# LLM failures that mean "our provider is unavailable", not "the member's document
+# is bad". These must surface as an infrastructure outage, never as a re-upload
+# request — telling a member to re-photograph a perfectly good document because
+# Groq returned 503 is both wrong and corrosive to trust.
+_INFRA_LLM_FAILURES = frozenset(
+    {LLMErrorKind.TIMEOUT, LLMErrorKind.RATE_LIMIT, LLMErrorKind.PROVIDER_ERROR}
+)
 
 class DocVerifierAgent(Agent):
     name = "DocVerifierAgent"
@@ -29,6 +37,21 @@ class DocVerifierAgent(Agent):
                 try:
                     c = await self.llm.classify_document(doc)
                 except LLMError as e:
+                    if e.kind in _INFRA_LLM_FAILURES:
+                        # Provider down / throttled / circuit open — NOT the member's
+                        # fault. Stop with an honest "temporary issue, no action
+                        # needed" message and a distinct code ops can alert on.
+                        raise AgentFailure(AgentError(
+                            code=ErrorCode.PROVIDER_UNAVAILABLE,
+                            message=f"classification unavailable for {doc.file_id}: {e}",
+                            member_message=(
+                                "We're temporarily unable to process your documents due to a "
+                                "system issue on our side. No action is needed — your claim is "
+                                "safe and we'll continue automatically. Please check back shortly."),
+                            detail={"file_id": doc.file_id, "llm_error": str(e.kind)},
+                        ))
+                    # Any other LLM error (e.g. the model genuinely cannot read
+                    # the image) really is a document problem → re-upload request.
                     raise AgentFailure(AgentError(
                         code=ErrorCode.DOCUMENT_UNREADABLE,
                         message=f"classification failed for {doc.file_id}: {e}",

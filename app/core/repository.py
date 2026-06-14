@@ -3,6 +3,7 @@ import json, sqlite3
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from typing import Generator
+from app.config import settings
 from app.models.domain import ClaimOutcome, ClaimSubmission
 
 _SCHEMA = """
@@ -32,8 +33,14 @@ class Repository:
 
     @contextmanager
     def _conn(self) -> Generator[sqlite3.Connection, None, None]:
-        conn = sqlite3.connect(self.db_path)
+        # `timeout` is SQLite's busy timeout: a contended connection waits up to
+        # this long for the lock instead of instantly raising "database is
+        # locked". WAL journaling lets readers (GET /claims) run concurrently
+        # with the writer (claim persistence) rather than serializing on one
+        # lock — so a burst of submissions can't make the dashboard error out.
+        conn = sqlite3.connect(self.db_path, timeout=settings.sqlite_busy_timeout_s)
         conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA journal_mode=WAL")
         try:
             yield conn
             conn.commit()

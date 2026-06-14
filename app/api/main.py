@@ -1,11 +1,11 @@
 from __future__ import annotations
-import asyncio, json, logging
+import asyncio, json, logging, uuid
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 from app.api.schemas import HealthResponse
-from app.core.logging_config import configure_logging
+from app.core.logging_config import configure_logging, request_id_var
 
 logger = logging.getLogger(__name__)
 from app.config import settings
@@ -17,13 +17,28 @@ from app.models.domain import ClaimOutcome, ClaimSubmission
 
 
 def make_llm():
+    # Live providers reach over the network, so they sit behind a circuit breaker
+    # that fails fast when the provider is down (see CircuitBreakerLLM). The mock
+    # provider is in-process and deterministic — wrapping it would add nothing, so
+    # it's returned bare and the breaker stays entirely off the test/eval path.
     if settings.llm_provider == "gemini":
         from app.llm.gemini_client import GeminiClient
-        return GeminiClient(api_key=settings.gemini_api_key)
+        return _with_breaker(GeminiClient(api_key=settings.gemini_api_key), "gemini")
     if settings.llm_provider == "groq":
         from app.llm.groq_client import GroqClient
-        return GroqClient(api_key=settings.groq_api_key, model=settings.groq_model)
+        return _with_breaker(
+            GroqClient(api_key=settings.groq_api_key, model=settings.groq_model), "groq")
     return MockClient()
+
+
+def _with_breaker(client, name: str):
+    from app.llm.circuit_breaker import CircuitBreakerLLM
+    return CircuitBreakerLLM(
+        client,
+        fail_max=settings.llm_circuit_fail_max,
+        cooldown_s=settings.llm_circuit_cooldown_s,
+        name=name,
+    )
 
 
 def create_app(db_path: str | None = None) -> FastAPI:
@@ -40,6 +55,22 @@ def create_app(db_path: str | None = None) -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    @app.middleware("http")
+    async def correlation_id(request, call_next):
+        # Honor a caller-supplied X-Request-ID (lets a gateway/SPA thread one id
+        # through), else mint one. Bind it to the contextvar so every log line
+        # this request emits is stamped with it, and stash it on request.state
+        # so the error handler can still read it after the contextvar is reset.
+        rid = request.headers.get("X-Request-ID") or f"req-{uuid.uuid4().hex[:8]}"
+        request.state.request_id = rid
+        token = request_id_var.set(rid)
+        try:
+            response = await call_next(request)
+        finally:
+            request_id_var.reset(token)
+        response.headers["X-Request-ID"] = rid
+        return response
 
     loader = PolicyLoader.load(settings.policy_path)
     repo = Repository(db_path or settings.db_path)
@@ -139,11 +170,17 @@ def create_app(db_path: str | None = None) -> FastAPI:
     async def on_unexpected_error(request, exc):
         # Last-resort safety net: an unexpected error becomes a structured JSON
         # 500 rather than a bare crash, so the API stays predictable. Full detail
-        # is logged for ops; the member-facing body never leaks internals.
-        logger.exception("unhandled error on %s %s", request.method, request.url.path)
+        # is logged for ops; the member-facing body never leaks internals. The
+        # request id is echoed in both the log and the body so a user-reported
+        # failure can be traced to its exact log line. (Read from request.state,
+        # not the contextvar, which the middleware has already reset by now.)
+        rid = getattr(request.state, "request_id", "-")
+        logger.exception("unhandled error on %s %s [%s]",
+                         request.method, request.url.path, rid)
         return JSONResponse(
             status_code=500,
             content={"error": "internal_error",
+                     "request_id": rid,
                      "detail": "An unexpected error occurred while processing the request."})
 
     return app
