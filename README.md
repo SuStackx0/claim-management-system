@@ -1,33 +1,40 @@
-# Plum Claims Pipeline — AI Engineer Assignment
+# Health Insurance Claims Pipeline
 
-Automated health insurance claims adjudication system. A FastAPI backend runs a deterministic 7-agent pipeline (LLM-powered document extraction via Gemini 2.5 Flash, pure-code policy/financial logic) and a Streamlit UI for submitting claims, reviewing decisions, and running the 12-case evaluation suite.
+An automated health-insurance claims adjudication system. A FastAPI backend runs a
+deterministic 7-agent pipeline — LLM-powered vision extraction of medical documents,
+with all policy and financial logic in pure, testable code — and exposes it to a React
+SPA (and a Streamlit client) for submitting claims, reviewing decisions with a full
+audit trace, and running an evaluation suite.
 
 ---
 
 ## Quickstart
 
 ```bash
-# 1. Create and activate env (conda shown; venv works too)
-conda create -n plum python=3.13 -y && conda activate plum
+# 1. Create and activate an env
+python -m venv .venv && source .venv/bin/activate   # (conda works too)
 pip install -r requirements.txt
 
 # 2. Set env vars
 cp .env.example .env
-# Edit .env: set LLM_PROVIDER=mock (no key needed) or LLM_PROVIDER=gemini + GEMINI_API_KEY=...
+# Edit .env: LLM_PROVIDER=mock (no key needed) | groq + GROQ_API_KEY | gemini + GEMINI_API_KEY
 
 # 3. Run the API
 uvicorn app.api.main:app --reload
 
-# 4. Run the UI (new terminal)
-streamlit run ui/streamlit_app.py
+# 4. Run a UI (new terminal) — React SPA or Streamlit
+cd frontend && npm install && npm run dev        # React SPA
+streamlit run ui/streamlit_app.py                # or the Streamlit client
 
-# 5. Run the 12-case eval suite
-python -m app.eval
-# → writes docs/eval_report.md
+# 5. Run the evaluation suite
+python -m app.eval            # deterministic engine check (mock)
+python -m app.eval --live     # real vision pipeline over generated document images
 ```
 
-**Mock mode** (default) uses deterministic test hints — no API key, instant responses.  
-**Gemini mode** (`LLM_PROVIDER=gemini`) uses real vision LLM to classify and extract from uploaded images.
+Or with Docker: `docker compose up` (API + UI).
+
+**Mock mode** (default) injects structured fixtures — no API key, instant, deterministic.
+**Vision mode** (`groq` / `gemini`) classifies and extracts from real document images.
 
 ---
 
@@ -41,16 +48,18 @@ ClaimSubmission ──► Intake ──► DocVerifier ──► Extraction ─�
 | Agent | Role |
 |---|---|
 | **Intake** | Required docs present, member lookup |
-| **DocVerifier** | Readability check; UNREADABLE doc → STOPPED with filename |
-| **Extraction** | Mock path (test hints) or Gemini vision → structured fields |
-| **Consistency** | Cross-doc patient name match, treatment date sanity |
+| **DocVerifier** | Classify + readability; UNREADABLE doc → STOPPED with filename |
+| **Extraction** | Mock path (fixtures) or vision LLM → structured, validated fields |
+| **Consistency** | Cross-doc patient-name match, treatment-date sanity |
 | **Adjudicator** | Policy rule checks + line-item math (network discount before copay) |
 | **FraudAgent** | Signal scoring; high score → MANUAL_REVIEW |
 | **Aggregator** | Final decision, member message, ops summary |
 
-**LLMClient Protocol**: `GeminiClient` (real) | `MockClient` (test) — swapped via `LLM_PROVIDER` env var.  
-**Decisions**: `APPROVED` | `PARTIAL` | `REJECTED` | `MANUAL_REVIEW` | `STOPPED`  
+**LLMClient Protocol**: `GroqClient` | `GeminiClient` | `MockClient` — swapped via `LLM_PROVIDER`.
+**Decisions**: `APPROVED` | `PARTIAL` | `REJECTED` | `MANUAL_REVIEW` | `STOPPED`
 **Confidence**: multiplicative product of all agent scores, clamped [0, 1].
+
+The design patterns used across the codebase are mapped in **[docs/lld.md](docs/lld.md)**.
 
 ---
 
@@ -63,11 +72,11 @@ outcome is reconstructable. Each failure class has a defined, tested response:
 | Failure | Response |
 |---|---|
 | **Fatal agent** (Intake, DocVerifier, patient mismatch) | Pipeline stops; HTTP 200 `STOPPED` with a specific, member-facing message |
-| **Degradable agent** (Extraction per-doc, Fraud) | Step `DEGRADED`/`SKIPPED`, confidence docked, pipeline continues, manual-review noted (TC011) |
-| **LLM** timeout / rate-limit / invalid schema | Wrapped in `LLMError`, one retry where sensible, else step `DEGRADED` — the app never 500s on an LLM problem |
-| **Bad client input** (malformed or invalid upload payload) | `422` with field detail — a client error, not a crash |
+| **Degradable agent** (Extraction per-doc, Fraud) | Step `DEGRADED`/`SKIPPED`, confidence docked, pipeline continues, manual-review noted |
+| **LLM** timeout / rate-limit / invalid schema | Wrapped in `LLMError`, retried with backoff, else step `DEGRADED` — the app never 500s on an LLM problem |
+| **Bad client input** (malformed/invalid payload) | `422` with field detail — a client error, not a crash |
 | **Persistence** (SQLite write) failure | Logged; the computed decision is **still returned** — a side-effect failure never discards adjudication |
-| **Any unhandled error** | Global handler → structured `500 {"error": "internal_error"}`; full detail logged, internals never leaked to the member |
+| **Any unhandled error** | Global handler → structured `500 {"error": "internal_error"}`; full detail logged, internals never leaked |
 
 ### Single points of failure & scaling to 10×
 
@@ -85,22 +94,22 @@ sitting behind isolated seams (`LLMClient`, `Repository`, the agent `Protocol`,
 app/
   agents/          ← 7 agents (intake, doc_verifier, extraction, consistency,
                                adjudicator, fraud, aggregator)
-  api/             ← FastAPI routes (POST /claims, GET /claims, POST /upload, POST /eval/run)
+  api/             ← FastAPI routes (/claims, /claims/upload, /eval/*, /health)
   core/            ← orchestrator, policy_loader, trace, repository (SQLite)
-  eval/            ← EvalRunner: 12-case suite → eval_report.md
-  llm/             ← LLMClient protocol, GeminiClient, MockClient
+  eval/            ← EvalRunner: 12-case suite → eval_report.md (mock + live vision)
+  llm/             ← LLMClient protocol, GroqClient, GeminiClient, MockClient
   models/          ← domain, extraction, policy Pydantic models
-ui/
-  streamlit_app.py ← Submit / Review / Eval pages
-  helpers.py       ← HTTP helpers (get/post)
-  render.py        ← render_decision / render_trace
+frontend/          ← React + Vite SPA (Submit / Review / Eval)
+ui/                ← Streamlit client (Submit / Review / Eval)
 scripts/
   generate_sample_docs.py  ← PIL-rendered synthetic medical images
-sample_docs/       ← 6 pre-generated demo images
+  generate_eval_docs.py    ← one image per test-case document → eval_docs/
+  run_live_eval.py         ← run cases through the live vision pipeline
+eval_docs/         ← per-case document images for the live eval
 data/
   policy_terms.json   ← full policy: benefits, limits, exclusions, network discounts
-  test_cases.json     ← 12 eval cases (TC001–TC012)
-tests/             ← 160+ tests, all pass
+  test_cases.json     ← 12 evaluation cases (TC001–TC012)
+tests/             ← unit + integration tests
 ```
 
 ---
@@ -109,46 +118,57 @@ tests/             ← 160+ tests, all pass
 
 | Variable | Default | Description |
 |---|---|---|
-| `LLM_PROVIDER` | `mock` | `mock` or `gemini` |
+| `LLM_PROVIDER` | `mock` | `mock` \| `groq` \| `gemini` |
+| `GROQ_API_KEY` | — | Required for `groq` vision mode |
+| `GROQ_MODEL` | `meta-llama/llama-4-scout-17b-16e-instruct` | Groq multimodal model |
 | `GEMINI_API_KEY` | — | Required for `gemini` mode |
 | `DB_PATH` | `claims.db` | SQLite database path |
 | `POLICY_PATH` | `data/policy_terms.json` | Policy config |
-| `TEST_CASES_PATH` | `data/test_cases.json` | Eval test cases |
-| `API_BASE_URL` | `http://localhost:8000` | Used by Streamlit UI |
+| `TEST_CASES_PATH` | `data/test_cases.json` | Evaluation cases |
+| `API_BASE_URL` | `http://localhost:8000` | Used by the Streamlit UI |
+
+---
+
+## Evaluation
+
+```bash
+python -m app.eval            # deterministic: injected fixtures, no LLM → repeatable 12/12
+python -m app.eval --live     # real vision: reads eval_docs/ images through the LLM
+```
+
+The live run renders each test-case document to an image (`scripts/generate_eval_docs.py`
+→ `eval_docs/<case_id>_<file_id>.png`) and pushes it through the real classify → extract →
+adjudicate path. Money and policy logic stay deterministic; only perception is the LLM.
+The report is written to **[docs/eval_report.md](docs/eval_report.md)**.
 
 ---
 
 ## Running Tests
 
 ```bash
-# Fast suite (excludes slow 12-case full run)
-pytest -q -k "not run_all"
-
-# Full suite including 12-case eval (~3 min)
-pytest -q
-
-# Live Gemini tests (requires GEMINI_API_KEY in .env)
-pytest -m live
+pytest -q -k "not run_all"   # fast suite (excludes the full 12-case run)
+pytest -q                    # full suite
+pytest -m live               # live vision tests (requires a provider key in .env)
 ```
 
 ---
 
 ## Deploy (Render)
 
-See `render.yaml`. Deploy via Render Blueprint:
-1. Push repo to GitHub
-2. Connect in Render dashboard → New Blueprint
-3. Set `GEMINI_API_KEY` in the `plum-claims-api` service env vars (marked `sync: false`)
+See `render.yaml` — deploy via Render Blueprint:
+1. Push the repo to GitHub
+2. Connect in the Render dashboard → New Blueprint
+3. Set the provider key (e.g. `GROQ_API_KEY`) in the API service env vars (`sync: false`)
 4. Both services deploy automatically
 
-> **Note:** Render free tier has cold starts (~30s). The eval run takes ~3 min on mock mode.
+> **Note:** Render free tier has cold starts (~30s).
 
 ---
 
 ## Key Design Decisions
 
-- **Option A per-claim limit**: Line-item adjudication runs first, then cap against `max(per_claim_limit, sub_limit)`.
-- **Network discount before copay**: TC010 validates this — discount applied to gross amount, copay on the net.
-- **Early exit on document issues**: UNREADABLE or missing required docs → `status: STOPPED` (HTTP 200, domain outcome, not error).
-- **Graceful degradation**: Non-critical agent failure reduces confidence but doesn't stop the pipeline.
-- **No LLM for policy/money logic**: All rule evaluation and financial math is pure Python reading `policy_terms.json`.
+- **Per-claim limit**: Line-item adjudication runs first, then caps against `max(per_claim_limit, sub_limit)`.
+- **Network discount before copay**: discount applied to the gross amount, copay on the net.
+- **Early exit on document issues**: UNREADABLE or missing required docs → `STOPPED` (HTTP 200, a domain outcome, not an error).
+- **Graceful degradation**: a non-critical agent failure reduces confidence but doesn't stop the pipeline.
+- **No LLM for policy/money logic**: all rule evaluation and financial math is pure Python reading `policy_terms.json`.
