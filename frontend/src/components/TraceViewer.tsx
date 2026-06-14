@@ -10,10 +10,10 @@ const TRACE_ICONS: Record<TraceStatus, string> = {
   PASS: "✅", FAIL: "❌", DEGRADED: "⚠️", SKIPPED: "⏭️",
 };
 const TRACE_THEME: Record<TraceStatus, { color: string; bg: string }> = {
-  PASS:     { color: "#15803d", bg: "#dcfce7" },
-  FAIL:     { color: "#b91c1c", bg: "#fee2e2" },
-  DEGRADED: { color: "#b45309", bg: "#fef3c7" },
-  SKIPPED:  { color: "#64748b", bg: "#e2e8f0" },
+  PASS:     { color: "#1A5C3A", bg: "#ECFAF3" },
+  FAIL:     { color: "#8B1A1A", bg: "#FEF0F0" },
+  DEGRADED: { color: "#7A4A10", bg: "#FEF7E8" },
+  SKIPPED:  { color: "#4A4540", bg: "#EDE9E2" },
 };
 const ORDER: TraceStatus[] = ["PASS", "FAIL", "DEGRADED", "SKIPPED"];
 
@@ -79,7 +79,7 @@ function DetailView({ value }: { value: unknown }) {
 
 function StepRow({ step }: { step: TraceStep }) {
   const [open, setOpen] = useState(false);
-  const theme = TRACE_THEME[step.status] ?? { color: "#64748b", bg: "#e2e8f0" };
+  const theme = TRACE_THEME[step.status] ?? { color: "#4A4540", bg: "#EDE9E2" };
   const icon = TRACE_ICONS[step.status] ?? "•";
   const checks = step.checks ?? [];
   const conf = step.confidence_entries ?? [];

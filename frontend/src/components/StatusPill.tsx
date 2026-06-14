@@ -9,11 +9,11 @@ interface Theme {
 }
 
 const STATUS_THEME: Record<string, Theme> = {
-  APPROVED:      { label: "Approved",      icon: "✅", color: "#15803d", bg: "#dcfce7", border: "#86efac" },
-  PARTIAL:       { label: "Partial",       icon: "🟡", color: "#b45309", bg: "#fef3c7", border: "#fcd34d" },
-  REJECTED:      { label: "Rejected",      icon: "❌", color: "#b91c1c", bg: "#fee2e2", border: "#fca5a5" },
-  MANUAL_REVIEW: { label: "Manual Review", icon: "🔵", color: "#1d4ed8", bg: "#dbeafe", border: "#93c5fd" },
-  STOPPED:       { label: "Stopped",       icon: "⏹", color: "#475569", bg: "#e2e8f0", border: "#cbd5e1" },
+  APPROVED:      { label: "Approved",      icon: "✅", color: "#1A5C3A", bg: "#ECFAF3", border: "#7DD3A8" },
+  PARTIAL:       { label: "Partial",       icon: "🟡", color: "#7A4A10", bg: "#FEF7E8", border: "#D4A853" },
+  REJECTED:      { label: "Rejected",      icon: "❌", color: "#8B1A1A", bg: "#FEF0F0", border: "#D98080" },
+  MANUAL_REVIEW: { label: "Manual Review", icon: "🔍", color: "#5E4A24", bg: "#FBF5E9", border: "#C9A962" },
+  STOPPED:       { label: "Stopped",       icon: "⏹",  color: "#4A4540", bg: "#EDE9E2", border: "#C0B8AD" },
 };
 
 export default function StatusPill({ status, text }: { status: string; text?: string }) {

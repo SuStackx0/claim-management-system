@@ -9,7 +9,7 @@ const DECISION_CONFIG: Record<DecisionStatus, { alert: string; label: string; ic
   APPROVED:      { alert: "pc-alert-success", label: "APPROVED",         icon: "✅" },
   PARTIAL:       { alert: "pc-alert-warning", label: "PARTIAL APPROVAL", icon: "🟡" },
   REJECTED:      { alert: "pc-alert-error",   label: "REJECTED",         icon: "❌" },
-  MANUAL_REVIEW: { alert: "pc-alert-info",    label: "MANUAL REVIEW",    icon: "🔵" },
+  MANUAL_REVIEW: { alert: "pc-alert-info",    label: "MANUAL REVIEW",    icon: "🔍" },
 };
 
 function confidenceLabel(c: number) {
@@ -18,9 +18,9 @@ function confidenceLabel(c: number) {
   return "Low";
 }
 function confidenceColor(c: number) {
-  if (c >= 0.85) return "#15803d";
-  if (c >= 0.6) return "#b45309";
-  return "#b91c1c";
+  if (c >= 0.85) return "#1A5C3A";
+  if (c >= 0.6) return "#7A4A10";
+  return "#8B1A1A";
 }
 const inr = (n: number) => `₹${n.toLocaleString("en-IN")}`;
 
@@ -29,7 +29,7 @@ export default function DecisionCard({ outcome }: { outcome: ClaimOutcome }) {
     const msg = outcome.member_message;
     return (
       <div>
-        <div className="pc-card" style={{ borderLeft: "4px solid #94a3b8" }}>
+        <div className="pc-card" style={{ borderLeft: "4px solid #C0B8AD" }}>
           <div className="pc-hero">
             <StatusPill status="STOPPED" />
           </div>
