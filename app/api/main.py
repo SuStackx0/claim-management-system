@@ -158,7 +158,7 @@ def create_app(db_path: str | None = None) -> FastAPI:
             raise HTTPException(
                 503, f"No eval document images for {case_id} in {EVAL_DOCS_DIR}. "
                 "Run `python scripts/generate_eval_docs.py`, then rebuild the API "
-                "image (Dockerfile.api copies eval_docs/).")
+                "image (app/Dockerfile copies eval_docs/).")
         from app.llm.groq_client import GroqClient
         live_llm = GroqClient(api_key=settings.groq_api_key, model=settings.groq_model)
         live_orch = Orchestrator(loader=loader, llm=live_llm)  # no repo: eval is not a real claim

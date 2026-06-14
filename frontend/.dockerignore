@@ -1,0 +1,16 @@
+# Build context for the UI service is frontend/, so this file (not the repo-root
+# .dockerignore) governs what reaches the Docker daemon for the UI image.
+#
+# CRITICAL: never copy host node_modules into the build — macOS-native
+# esbuild/rollup binaries clobber the container's Linux ones and the build fails.
+# Dependencies are installed fresh inside the image via `npm ci`/`npm install`.
+node_modules
+dist
+
+# Local env & secrets — must not be baked into the image.
+.env
+.env.local
+
+# OS / editor cruft
+.DS_Store
+*.log

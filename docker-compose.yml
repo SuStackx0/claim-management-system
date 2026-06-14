@@ -1,8 +1,10 @@
 services:
   api:
     build:
+      # Context stays at the repo root: the API image needs requirements.txt,
+      # data/ and eval_docs/, which live alongside app/, not inside it.
       context: .
-      dockerfile: Dockerfile.api
+      dockerfile: app/Dockerfile
     container_name: plum-claims-api
     environment:
       # Defaults to the mock LLM so `docker compose up` works end-to-end with no
@@ -29,8 +31,10 @@ services:
     # React SPA served by nginx, which reverse-proxies /claims, /members, /eval
     # and /health to the api service — so the browser talks to one origin only.
     build:
-      context: .
-      dockerfile: Dockerfile.ui
+      # The UI is self-contained, so it builds from its own directory as the
+      # context (governed by frontend/.dockerignore).
+      context: frontend
+      dockerfile: Dockerfile
     container_name: plum-claims-ui
     ports:
       - "8501:80"

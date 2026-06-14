@@ -1,3 +1,8 @@
+# API service image. NOTE: the build context is the REPO ROOT (set in
+# docker-compose.yml as `context: .`), not this app/ directory — the build needs
+# requirements.txt, data/ and eval_docs/ which live at the root. Every COPY path
+# below is therefore relative to the repo root. The root .dockerignore governs
+# this context.
 FROM python:3.13-slim
 
 WORKDIR /app
