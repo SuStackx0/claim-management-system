@@ -72,7 +72,7 @@ graph_add_memory(type="decision|task|next|fact|blocker", content="one sentence m
 - `files` lists the files this decision/task relates to (can be empty)
 - Log immediately when the item arises — not at session end
 
-## Session End
+Session End
 
 When the user signals they are done (e.g. "bye", "done", "wrap up", "end session"), proactively update `CONTEXT.md` in the project root with:
 
